@@ -1,4 +1,8 @@
 import { useState } from "react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer,
+} from "recharts";
 import * as I from "../icons";
 
 const ENTRIES = [
@@ -9,15 +13,27 @@ const ENTRIES = [
   { plate: "WA 33210", time: "13:15", type: "out", status: "Wyjazd — 2h 05min" },
 ];
 
+const REVENUE_DATA = [
+  { day: "Pon", value: 840 },
+  { day: "Wt",  value: 1120 },
+  { day: "Śr",  value: 980 },
+  { day: "Czw", value: 1340 },
+  { day: "Pt",  value: 1580 },
+  { day: "Sob", value: 2100 },
+  { day: "Nd",  value: 1240 },
+];
+
 const TAKEN_SPOTS = new Set([
-  0,1,3,5,6,8,9,11,12,14,15,17,18,20,22,23,24,26,27,29,30,31,33,34,35,36,37,39,40,41,42,43,44,45,46,47,48,49,
+  0,1,3,5,6,8,9,11,12,14,15,17,18,20,22,23,
+  24,26,27,29,30,31,33,34,35,36,37,39,40,41,
+  42,43,44,45,46,47,48,49,
 ]);
 
 const QUICK_ACTIONS = [
-  { label: "Zmień cenę",         icon: "💰" },
-  { label: "Godziny otwarcia",   icon: "🕐" },
-  { label: "Konserwacja miejsc", icon: "🔧" },
-  { label: "Raport PDF",         icon: "📊" },
+  { label: "Zmień cenę",         icon: <I.TrendUp /> },
+  { label: "Godziny otwarcia",   icon: <I.Clock /> },
+  { label: "Konserwacja miejsc", icon: <I.Gear /> },
+  { label: "Raport PDF",         icon: <I.Download /> },
 ];
 
 export default function Dashboard({ setToast }) {
@@ -42,7 +58,7 @@ export default function Dashboard({ setToast }) {
         </button>
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="d-grid">
         <div className="d-stat">
           <div className="d-stat-l">Zajętość</div>
@@ -60,27 +76,56 @@ export default function Dashboard({ setToast }) {
           <div className="d-stat-c">z 50 miejsc</div>
         </div>
         <div className="d-stat">
-          <div className="d-stat-l">Punkty lojalnościowe</div>
+          <div className="d-stat-l">Pkt. lojalnościowe</div>
           <div className="d-stat-v">2 480</div>
           <div className="d-stat-c">wydane</div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16 }}>
+      <div className="dash-layout">
         <div>
+          {/* Revenue chart */}
+          <div className="d-sec">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <h3 style={{ margin: 0 }}>Przychód — ostatnie 7 dni</h3>
+              <span style={{ fontSize: 11, color: "var(--text3)" }}>
+                Σ {REVENUE_DATA.reduce((s, d) => s + d.value, 0).toLocaleString("pl")} zł
+              </span>
+            </div>
+            <div className="chart-c">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={REVENUE_DATA} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#F17300" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#F17300" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(129,164,205,0.12)" />
+                  <XAxis dataKey="day" tick={{ fill: "#81A4CD", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#81A4CD", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#054A91", border: "1px solid rgba(129,164,205,0.22)", borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: "#DBE4EE", fontWeight: 600 }}
+                    itemStyle={{ color: "#F17300" }}
+                    formatter={(v) => [`${v} zł`, "Przychód"]}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#F17300" strokeWidth={2} fill="url(#rev)" dot={{ fill: "#F17300", r: 3 }} activeDot={{ r: 5 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           {/* Entry log */}
           <div className="d-sec">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ margin: 0 }}>Ostatnie wjazdy / wyjazdy</h3>
-              <span style={{ fontSize: 11, color: "var(--text3)" }}>Ostatnie 5</span>
+              <span style={{ fontSize: 11, color: "var(--text3)" }}>Na żywo</span>
             </div>
             <table className="dtbl">
               <thead>
                 <tr>
-                  <th>Tablica</th>
-                  <th>Czas</th>
-                  <th>Typ</th>
-                  <th>Status</th>
+                  <th>Tablica</th><th>Czas</th><th>Typ</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,16 +134,11 @@ export default function Dashboard({ setToast }) {
                     <td style={{ fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{e.plate}</td>
                     <td>{e.time}</td>
                     <td>
-                      <span
-                        style={{
-                          padding: "2px 10px",
-                          borderRadius: 10,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          background: e.type === "in" ? "var(--success-bg)" : "var(--bg3)",
-                          color: e.type === "in" ? "var(--success)" : "var(--text3)",
-                        }}
-                      >
+                      <span style={{
+                        padding: "2px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600,
+                        background: e.type === "in" ? "var(--success-bg)" : "var(--bg3)",
+                        color: e.type === "in" ? "var(--success)" : "var(--text3)",
+                      }}>
                         {e.type === "in" ? "Wjazd" : "Wyjazd"}
                       </span>
                     </td>
@@ -111,25 +151,24 @@ export default function Dashboard({ setToast }) {
 
           {/* Manual controls */}
           <div className="d-sec">
-            <h3>Ręczne zarządzanie</h3>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-              <button className="btn btn-o btn-sm" onClick={() => setToast("Szlaban otwarty")}>
-                <I.Barrier /> Otwórz szlaban
-              </button>
-              <button className="btn btn-o btn-sm" onClick={() => setToast("Rezerwacja dodana")}>
-                <I.Plus /> Dodaj rezerwację
-              </button>
-              <button className="btn btn-o btn-sm">
-                <I.Alert /> Zgłoś problem
-              </button>
-            </div>
+            <h3>Sterowanie szlabanem</h3>
             <div className="bar-ctrl">
               <button className={`bar-sw ${barrierOpen ? "on" : ""}`} onClick={toggleBarrier} />
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>
-                  Szlaban: {barrierOpen ? "OTWARTY" : "ZAMKNIĘTY"}
+                  Szlaban: <span style={{ color: barrierOpen ? "var(--success)" : "var(--danger)" }}>
+                    {barrierOpen ? "OTWARTY" : "ZAMKNIĘTY"}
+                  </span>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)" }}>Tryb ręczny</div>
+                <div style={{ fontSize: 11, color: "var(--text3)" }}>Tryb ręczny — normalnie sterowany przez ANPR</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-o btn-sm" onClick={() => setToast("Rezerwacja dodana")}>
+                  <I.Plus /> Dodaj rezerwację
+                </button>
+                <button className="btn btn-o btn-sm">
+                  <I.Alert /> Zgłoś problem
+                </button>
               </div>
             </div>
           </div>
@@ -150,9 +189,9 @@ export default function Dashboard({ setToast }) {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6, display: "flex", gap: 10 }}>
-              <span style={{ color: "var(--success)" }}>12 wolnych</span>
-              <span>38 zajętych</span>
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 8, display: "flex", gap: 12 }}>
+              <span style={{ color: "var(--success)" }}>● 12 wolnych</span>
+              <span>● 38 zajętych</span>
             </div>
           </div>
 
@@ -160,25 +199,15 @@ export default function Dashboard({ setToast }) {
           <div className="d-sec">
             <h3>Szybkie akcje</h3>
             {QUICK_ACTIONS.map((a, i) => (
-              <div
+              <button
                 key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 10px",
-                  borderRadius: 7,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg3)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                className="qa-item"
+                onClick={() => setToast(`${a.label}...`)}
               >
-                <span style={{ fontSize: 14 }}>{a.icon}</span>
+                <div className="qa-item-ic">{a.icon}</div>
                 <span style={{ flex: 1 }}>{a.label}</span>
                 <I.Chev />
-              </div>
+              </button>
             ))}
           </div>
         </div>

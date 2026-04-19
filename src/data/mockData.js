@@ -8,6 +8,7 @@ export const MOCK_PARKINGS = [
     price: 8,
     rating: 4.6,
     img: "🏢",
+    coords: [52.2297, 21.0122],
   },
   {
     id: 2,
@@ -18,6 +19,7 @@ export const MOCK_PARKINGS = [
     price: 5,
     rating: 4.2,
     img: "🏬",
+    coords: [52.1862, 21.0045],
   },
   {
     id: 3,
@@ -28,6 +30,7 @@ export const MOCK_PARKINGS = [
     price: 12,
     rating: 4.8,
     img: "🏛️",
+    coords: [52.2318, 21.0063],
   },
   {
     id: 4,
@@ -38,6 +41,7 @@ export const MOCK_PARKINGS = [
     price: 15,
     rating: 4.0,
     img: "✈️",
+    coords: [52.1657, 20.9671],
   },
   {
     id: 5,
@@ -48,6 +52,7 @@ export const MOCK_PARKINGS = [
     price: 4,
     rating: 3.9,
     img: "🅿️",
+    coords: [52.2520, 21.0478],
   },
 ];
 
@@ -60,6 +65,8 @@ export const MOCK_RESERVATIONS = [
     plate: "WA 12345",
     status: "active",
     price: 64,
+    address: "ul. Marszałkowska 10, Warszawa",
+    spot: "A-12",
   },
   {
     id: "R-002",
@@ -69,6 +76,8 @@ export const MOCK_RESERVATIONS = [
     plate: "WA 12345",
     price: 48,
     status: "completed",
+    address: "pl. Defilad 1, Warszawa",
+    spot: "B-07",
   },
   {
     id: "R-003",
@@ -78,5 +87,7 @@ export const MOCK_RESERVATIONS = [
     plate: "WA 67890",
     price: 10,
     status: "completed",
+    address: "ul. Wołoska 12, Warszawa",
+    spot: "C-03",
   },
 ];

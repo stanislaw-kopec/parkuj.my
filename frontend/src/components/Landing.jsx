@@ -1,11 +1,6 @@
 import * as I from "../icons";
 
-export default function Landing({ setPage, setUser }) {
-  const handleLogin = () => {
-    setUser({ name: "Jan Kowalski", email: "jan@gmail.com" });
-    setPage("home");
-  };
-
+export default function Landing({ setPage }) {
   return (
     <div className="land fin">
       <div className="land-badge">
@@ -19,8 +14,8 @@ export default function Landing({ setPage, setUser }) {
       </p>
 
       <div className="land-btns">
-        <button className="btn btn-a btn-lg" onClick={handleLogin}>
-          <I.Google /> Zaloguj się przez Google
+        <button className="btn btn-a btn-lg" onClick={() => setPage("auth")}>
+          Zaloguj się
         </button>
         <button className="btn btn-o btn-lg" onClick={() => setPage("join")}>
           Dołącz z parkingiem <I.Arr />

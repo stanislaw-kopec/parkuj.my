@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Nav from "./components/Nav";
 import Landing from "./components/Landing";
+import AuthPage from "./components/AuthPage";
 import HomePage from "./components/HomePage";
 import ReservePage from "./components/ReservePage";
 import Reservations from "./components/Reservations";
@@ -30,19 +31,20 @@ export default function App() {
   }, [showMenu]);
 
   useEffect(() => {
-    if (!user && page !== "landing" && page !== "join") setPage("landing");
+    if (!user && page !== "landing" && page !== "join" && page !== "auth") setPage("landing");
   }, [user, page]);
 
   const renderPage = () => {
     switch (page) {
-      case "landing":      return <Landing setPage={setPage} setUser={setUser} />;
+      case "landing":      return <Landing setPage={setPage} />;
+      case "auth":         return <AuthPage setUser={setUser} setRole={setRole} setPage={setPage} setToast={setToast} />;
       case "home":         return <HomePage setPage={setPage} />;
       case "reserve":      return <ReservePage setToast={setToast} />;
       case "reservations": return <Reservations setPage={setPage} setToast={setToast} />;
       case "join":         return <JoinPage user={user} setUser={setUser} setPage={setPage} setRole={setRole} />;
       case "dashboard":    return <Dashboard setToast={setToast} />;
       case "contact":      return <ContactPage setToast={setToast} />;
-      default:             return <Landing setPage={setPage} setUser={setUser} />;
+      default:             return <Landing setPage={setPage} />;
     }
   };
 
@@ -53,6 +55,7 @@ export default function App() {
         setPage={setPage}
         user={user}
         setUser={setUser}
+        setRole={setRole}
         role={role}
         showMenu={showMenu}
         setShowMenu={setShowMenu}

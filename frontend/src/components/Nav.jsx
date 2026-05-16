@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as I from "../icons";
 
-export default function Nav({ page, setPage, user, setUser, role, showMenu, setShowMenu }) {
+export default function Nav({ page, setPage, user, setUser, setRole, role, showMenu, setShowMenu }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const tabs = [
@@ -48,9 +48,6 @@ export default function Nav({ page, setPage, user, setUser, role, showMenu, setS
           </div>
         ) : (
           <div className="tabs">
-            <button className="tab join" onClick={() => navigate("join")}>
-              <I.Plus />Dołącz z parkingiem
-            </button>
           </div>
         )}
 
@@ -91,7 +88,7 @@ export default function Nav({ page, setPage, user, setUser, role, showMenu, setS
                     </button>
                     <button
                       className="umi red"
-                      onClick={() => { setUser(null); setShowMenu(false); setPage("landing"); }}
+                      onClick={() => { setUser(null); setRole("customer"); setShowMenu(false); setPage("landing"); }}
                     >
                       <I.Out /> Wyloguj się
                     </button>
@@ -101,10 +98,10 @@ export default function Nav({ page, setPage, user, setUser, role, showMenu, setS
             </>
           ) : (
             <button
-              className="btn-g"
-              onClick={() => { setUser({ name: "Jan Kowalski", email: "jan@gmail.com" }); setPage("home"); }}
+              className="btn btn-a btn-sm"
+              onClick={() => setPage("auth")}
             >
-              <I.Google /> Zaloguj się
+              Zaloguj się
             </button>
           )}
         </div>

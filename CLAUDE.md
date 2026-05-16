@@ -42,13 +42,27 @@ System rezerwacji miejsc parkingowych online. Użytkownik rezerwuje miejsce, pł
 | Warstwa | Technologia |
 |---------|------------|
 | Frontend | React 18 + Vite |
-| Backend | Java (Spring Boot) |
+| Backend | Java 17, Spring Boot 4.0.6 |
 | Baza danych | PostgreSQL |
 | OCR / ANPR | Python + FastAPI |
 | Autentykacja klientów | Google OAuth2 (JWT) |
 | Autentykacja adminów | Email + hasło (bcrypt) |
 | Mapy | Leaflet / react-leaflet |
 | Wykresy | Recharts |
+
+### Zależności backendu (pom.xml)
+```
+groupId:    my.parkuj
+artifactId: application
+Java:       17
+Spring Boot: 4.0.6
+
+Zależności:
+- spring-boot-starter-data-jpa    ← JPA / Hibernate
+- spring-boot-starter-webmvc      ← REST controllers
+- postgresql                       ← driver JDBC (runtime)
+- lombok                           ← @Data, @Builder itp.
+```
 
 ### Zależności frontendu (package.json)
 ```json
@@ -69,7 +83,54 @@ System rezerwacji miejsc parkingowych online. Użytkownik rezerwuje miejsce, pł
 
 ---
 
-## 4. Architektura frontendu (React prototype)
+## 4. Struktura repozytorium
+
+```
+parkuj.my/
+├── CLAUDE.md                          ← ten plik (wiki projektu)
+├── frontend/                          ← React 18 + Vite
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── index.css
+│       ├── components/
+│       │   ├── Landing.jsx
+│       │   ├── Nav.jsx
+│       │   ├── HomePage.jsx
+│       │   ├── ReservePage.jsx
+│       │   ├── Reservations.jsx
+│       │   ├── MapPage.jsx
+│       │   ├── JoinPage.jsx
+│       │   ├── Dashboard.jsx
+│       │   ├── ContactPage.jsx
+│       │   └── PCard.jsx
+│       ├── data/
+│       │   └── mockData.js
+│       └── icons/
+│           └── index.jsx
+└── backend/                           ← Java 17 + Spring Boot 4.0.6
+    ├── pom.xml
+    ├── mvnw / mvnw.cmd
+    └── src/
+        ├── main/
+        │   ├── java/my/parkuj/application/
+        │   │   └── Application.java   ← @SpringBootApplication (szkielet)
+        │   └── resources/
+        │       └── application.properties
+        └── test/
+            └── java/my/parkuj/application/
+                └── ApplicationTests.java
+```
+
+> Frontend był wcześniej w `src/` na roota — przeniesiony do `frontend/` w PR #3 (Stanisław Kopeć).
+> Backend dodany jako szkielet Maven w tym samym PR.
+
+---
+
+## 5. Architektura frontendu (React prototype)
 
 ### Routing
 Brak react-router. Routing przez `useState` w `App.jsx`:
@@ -119,7 +180,7 @@ Strona główna | Zarezerwuj | Moje rezerwacje | Mapa parkingów | Kontakt
 
 ---
 
-## 5. Schemat bazy danych (v2)
+## 6. Schemat bazy danych (v2)
 
 ### ENUMy
 
@@ -294,7 +355,7 @@ incident_status:        open | in_progress | resolved
 
 ---
 
-## 6. User Stories (18 łącznie)
+## 7. User Stories (18 łącznie)
 
 ### Klient z kontem (US-K01 – US-K10)
 
@@ -445,7 +506,7 @@ incident_status:        open | in_progress | resolved
 
 ---
 
-## 7. Kluczowe endpointy API (wynikające z user stories)
+## 8. Kluczowe endpointy API (wynikające z user stories)
 
 ```
 POST   /api/auth/google          # wymiana kodu OAuth na JWT
@@ -470,7 +531,7 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 
 ---
 
-## 8. Ważne decyzje architektoniczne
+## 9. Ważne decyzje architektoniczne
 
 | Decyzja | Uzasadnienie |
 |---------|-------------|
@@ -484,7 +545,7 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 
 ---
 
-## 9. Stan implementacji (maj 2026)
+## 10. Stan implementacji (maj 2026)
 
 ### Gotowe (frontend prototype)
 - [x] Landing page z mockowym logowaniem
@@ -496,22 +557,30 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 - [x] Wizard dołączania z parkingiem (4 kroki)
 - [x] Strona kontaktowa z FAQ
 
+### Backend — szkielet (PR #3, Stanisław Kopeć)
+- [x] Struktura Maven (`pom.xml`, `mvnw`)
+- [x] `Application.java` — @SpringBootApplication
+- [x] Zależności: spring-boot-starter-data-jpa, webmvc, postgresql, lombok
+
 ### Do zrobienia (backend + integracja)
-- [ ] Google OAuth2 (backend Java)
-- [ ] JWT auth
-- [ ] REST API (Spring Boot)
+- [ ] `application.properties` — konfiguracja datasource (PostgreSQL URL, credentials)
+- [ ] JPA entities (Customer, Vehicle, ParkingLot, PricingPlan, Reservation, ...)
+- [ ] Spring Data repositories
+- [ ] Service layer
+- [ ] REST controllers
+- [ ] Google OAuth2 + JWT auth
 - [ ] PostgreSQL schema migration (Flyway/Liquibase)
 - [ ] OCR serwis (Python/FastAPI + OpenCV/EasyOCR)
 - [ ] Integracja fizycznego szlabanu z API
 - [ ] Płatności (BLIK, karta — provider)
-- [ ] Email z kodem rezerwacji
-- [ ] Panel admina (/admin — osobna ścieżka)
+- [ ] Email z kodem rezerwacji (12 znaków)
+- [ ] Panel admina (/admin — osobna ścieżka, email+bcrypt)
 - [ ] Overtime detection + powiadomienia
 - [ ] Walk-in flow
 
 ---
 
-## 10. Architektura backendu Java (Spring Boot)
+## 11. Architektura backendu Java (Spring Boot)
 
 Źródło: diagram UML PlantUML `parkuj_my_full`.
 
@@ -765,7 +834,7 @@ ParkingLotService → PricingPlanRepository
 
 ---
 
-## 11. Konwencje i notatki
+## 12. Konwencje i notatki
 
 - Wszystkie kwoty w PLN (decimal 10,2)
 - Czas w UTC (timestamp), wyświetlanie konwertowane na strefę klienta

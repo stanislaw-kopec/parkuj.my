@@ -511,7 +511,261 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 
 ---
 
-## 10. Konwencje i notatki
+## 10. Architektura backendu Java (Spring Boot)
+
+Źródło: diagram UML PlantUML `parkuj_my_full`.
+
+### Warstwy aplikacji
+```
+Controller → Service → Repository → Model (Entity)
+                ↕
+               DTO  (konwersja entity ↔ JSON)
+```
+
+### Package structure
+
+```
+com.parkujmy/
+├── controller/
+│   ├── AuthController
+│   ├── CustomerController
+│   ├── VehicleController
+│   ├── ParkingLotController
+│   ├── ReservationController
+│   ├── PaymentController
+│   ├── BarrierController          ← odbiera zdarzenia OCR z Python serwisu
+│   └── AdminController
+├── service/
+│   ├── CustomerService
+│   ├── VehicleService
+│   ├── ParkingLotService
+│   ├── PricingService
+│   ├── ReservationService
+│   ├── ParkingSessionService
+│   ├── PaymentService
+│   ├── BarrierService
+│   ├── EmailService
+│   └── OcrEventService
+├── repository/                    ← Spring Data JPA interfaces
+│   ├── CustomerRepository
+│   ├── VehicleRepository
+│   ├── ParkingLotRepository
+│   ├── PricingPlanRepository
+│   ├── ReservationRepository
+│   ├── ParkingSessionRepository
+│   ├── PlateRecognitionEventRepository
+│   ├── BarrierGateRepository
+│   ├── BarrierActionRepository
+│   ├── PaymentRepository
+│   ├── AdminUserRepository
+│   └── IncidentReportRepository
+├── model/                         ← JPA entities
+│   ├── Customer
+│   ├── Vehicle
+│   ├── ParkingLot
+│   ├── PricingPlan
+│   ├── Reservation                ← @Version dla optimistic locking
+│   ├── ParkingSession
+│   ├── PlateRecognitionEvent
+│   ├── BarrierGate
+│   ├── BarrierAction
+│   ├── Payment
+│   ├── AdminUser
+│   └── IncidentReport
+├── dto/
+│   ├── CustomerDTO
+│   ├── VehicleDTO
+│   ├── ParkingLotDTO
+│   ├── AvailabilityDTO
+│   ├── PriceEstimateDTO
+│   ├── ReservationRequestDTO
+│   ├── ReservationResponseDTO
+│   ├── PlateEventDTO              ← przychodzi z Python OCR
+│   ├── BarrierOpenRequestDTO      ← kod rezerwacji + gateId
+│   ├── SessionDTO
+│   └── PaymentDTO
+└── enums/
+    ├── ReservationStatus
+    ├── ParkingSessionStatus
+    ├── PaymentMethod
+    ├── PaymentStatus
+    ├── BarrierActionType
+    ├── BarrierDirection
+    ├── PlateRecognitionResult
+    └── AdminRole
+```
+
+### Controllers — endpointy
+
+#### `AuthController`
+```java
+POST /api/auth/google              // googleCallback(token) → TokenDTO
+```
+
+#### `CustomerController`
+```java
+GET  /api/customers/me             // getMe() → CustomerDTO
+PUT  /api/customers/me             // updateMe(dto) → CustomerDTO
+```
+
+#### `VehicleController`
+```java
+GET    /api/vehicles               // getVehicles() → List<VehicleDTO>
+POST   /api/vehicles               // addVehicle(dto) → VehicleDTO
+DELETE /api/vehicles/{vehicleId}   // deleteVehicle()
+PATCH  /api/vehicles/{vehicleId}/primary  // setPrimary() → VehicleDTO
+```
+
+#### `ParkingLotController`
+```java
+GET /api/parkings                  // getAllParkingLots() → List<ParkingLotDTO>
+GET /api/parkings/{id}             // getParkingLot() → ParkingLotDTO
+GET /api/parkings/{id}/availability?from=&to=   // → AvailabilityDTO
+GET /api/parkings/{id}/price?from=&to=          // → PriceEstimateDTO
+```
+
+#### `ReservationController`
+```java
+POST   /api/reservations                     // createReservation(dto) → ReservationResponseDTO
+POST   /api/reservations/{id}/confirm        // confirmReservation(id, ref)
+DELETE /api/reservations/{id}                // cancelReservation()
+GET    /api/reservations                     // getMyReservations()
+POST   /api/reservations/open-barrier        // openBarrierWithCode(BarrierOpenRequestDTO)
+```
+
+#### `PaymentController`
+```java
+POST /api/payments/session/{sessionId}       // payForSession(method) → PaymentDTO
+POST /api/payments/webhook                   // handleWebhook(payload)
+```
+
+#### `BarrierController` (wewnętrzny, dla Python OCR)
+```java
+POST /api/barriers/plate-event               // handlePlateEvent(PlateEventDTO)
+```
+
+#### `AdminController`
+```java
+GET  /admin/api/sessions/active              // getActiveSessions() → List<SessionDTO>
+POST /admin/api/barriers/{gateId}/open       // forceOpenBarrier(reason)
+POST /admin/api/incidents                    // createIncident(dto)
+```
+
+### Services — kluczowe metody
+
+#### `CustomerService`
+```java
+getOrCreateCustomer(googleSub, email)        // Google OAuth → upsert customer
+getCustomerById(id)
+updateCustomer(id, dto)
+```
+
+#### `VehicleService`
+```java
+getVehiclesForCustomer(customerId)
+addVehicle(customerId, dto)
+deleteVehicle(customerId, vehicleId)         // sprawdza brak aktywnej rezerwacji
+setPrimary(customerId, vehicleId)            // resetuje is_primary dla pozostałych
+```
+
+#### `ParkingLotService`
+```java
+getAllParkingLots()                           // status = ACTIVE
+getParkingLotById(id)
+checkAvailability(id, from, to)              // → AvailabilityDTO
+```
+
+#### `PricingService`
+```java
+calculatePrice(lotId, from, to)              // → PriceEstimateDTO
+getActivePlan(lotId)                         // pricing_plan gdzie valid_to IS NULL
+```
+
+#### `ReservationService`
+```java
+createReservation(customerId, dto)           // status=PENDING, generuje reservation_code
+confirmReservation(reservationId, ref)       // status=CONFIRMED po płatności
+cancelReservation(customerId, reservationId) // PENDING/CONFIRMED → CANCELLED + refund
+getReservationsForCustomer(customerId)
+openBarrierWithCode(code, gateId)            // weryfikacja kodu fallback OCR
+expireStaleReservations()                    // scheduler @Scheduled
+```
+
+#### `ParkingSessionService`
+```java
+handleEntry(plate, gateId)                   // wjazd: szuka rezerwacji → ACTIVE, tworzy session
+handleExit(plate, gateId)                    // wyjazd: kończy session, sprawdza overtime
+getSessionByPlate(plate)                     // publiczny — dla walk-in app/parkomat
+isOvertimeOnExit(session)
+calculateOvertimeAmount(session)
+```
+
+#### `PaymentService`
+```java
+createPaymentForReservation(reservationId, method)   // płatność z góry
+payForSession(sessionId, method)                      // walk-in / overtime
+handleProviderWebhook(reference)                      // callback od brokera płatności
+refundPayment(paymentId)                              // zwrot przy anulowaniu
+```
+
+#### `BarrierService`
+```java
+openBarrier(gateId, reason)
+closeBarrier(gateId)
+forceOpenBarrier(gateId, adminId, reason)    // zapisuje BarrierAction FORCE_OPEN
+```
+
+#### `OcrEventService`
+```java
+processPlateEvent(dto)                       // przetwarza zdarzenie z Python OCR
+isConfidenceAcceptable(confidence)           // sprawdza próg pewności
+```
+
+### DTOs — kluczowe pola
+
+| DTO | Zastosowanie |
+|-----|-------------|
+| `PlateEventDTO` | Przychodzi z Python FastAPI: plateNumber, confidence, gateId, direction, imageUrl |
+| `BarrierOpenRequestDTO` | Klient otwiera kodem: reservationCode + gateId |
+| `ReservationRequestDTO` | Tworzenie rezerwacji: lotId, vehicleId/plateNumber, startAt, endAt |
+| `ReservationResponseDTO` | Odpowiedź z kodem 12-znakowym |
+| `AvailabilityDTO` | available, totalSpots, occupiedSpots, availableSpots |
+| `PriceEstimateDTO` | hours, pricePerHour, totalPrice, currency |
+| `SessionDTO` | sessionId, entryPlate, entryAt, status, parkingLotName |
+
+### Relacje między encjami (model)
+```
+Customer 1──* Vehicle
+Customer 1──* Reservation
+Vehicle  1──* Reservation
+Vehicle  1──* ParkingSession
+ParkingLot 1──* PricingPlan
+ParkingLot 1──* Reservation
+ParkingLot 1──* BarrierGate
+PricingPlan 1──* Reservation
+Reservation 1──0..1 ParkingSession
+Reservation 1──0..1 Payment
+ParkingSession 0..1──0..1 Payment       (walk-in: brak reservation)
+ParkingSession 1──* PlateRecognitionEvent
+ParkingSession 1──* BarrierAction
+BarrierGate 1──* PlateRecognitionEvent
+BarrierGate 1──* BarrierAction
+AdminUser 1──* IncidentReport
+```
+
+### Zależności między serwisami
+```
+ReservationService → PricingService, EmailService
+ParkingSessionService → BarrierService
+OcrEventService → ParkingSessionService
+PaymentService → ParkingSessionRepository
+VehicleService → CustomerRepository (cross-check)
+ParkingLotService → PricingPlanRepository
+```
+
+---
+
+## 11. Konwencje i notatki
 
 - Wszystkie kwoty w PLN (decimal 10,2)
 - Czas w UTC (timestamp), wyświetlanie konwertowane na strefę klienta

@@ -87,10 +87,13 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                         </div>
                       )}
                     </div>
-                    <button className="umi" onClick={() => setShowMenu(false)}>
+                    <button className="umi" onClick={() => { setShowMenu(false); setPage("user"); }}>
+                      <I.Home /> Moje konto
+                    </button>
+                    <button className="umi" onClick={() => { setShowMenu(false); setPage("settings"); }}>
                       <I.Gear /> Ustawienia
                     </button>
-                    <button className="umi" onClick={() => setShowMenu(false)}>
+                    <button className="umi" onClick={() => { setShowMenu(false); setPage("addCar"); }}>
                       <I.Car /> Dodaj pojazd
                     </button>
                     <button

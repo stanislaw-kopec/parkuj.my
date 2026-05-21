@@ -1,6 +1,11 @@
 import * as I from "../icons";
 
-export default function PCard({ p, onClick, selected }) {
+export default function PCard({ p, onClick, onDetails, selected, availability = p.available }) {
+  const handleDetails = (event) => {
+    event.stopPropagation();
+    onDetails?.();
+  };
+
   return (
     <div
       className="card pc"
@@ -21,7 +26,7 @@ export default function PCard({ p, onClick, selected }) {
       <div className="pc-name">{p.name}</div>
       <div className="pc-addr">{p.address}</div>
       <div className="pc-meta">
-        <span className={`pc-av ${p.available < 10 ? "low" : "ok"}`}>
+        <span className={`pc-av ${availability < 10 ? "low" : "ok"}`}>
           <span
             style={{
               width: 6,
@@ -31,7 +36,7 @@ export default function PCard({ p, onClick, selected }) {
               display: "inline-block",
             }}
           />
-          {p.available}/{p.spots}
+          {availability}/{p.spots}
         </span>
         {p.rating && (
           <span className="pc-rat">
@@ -39,6 +44,11 @@ export default function PCard({ p, onClick, selected }) {
           </span>
         )}
       </div>
+      {onDetails && (
+        <button className="pc-details" onClick={handleDetails}>
+          Szczegóły <I.Chev />
+        </button>
+      )}
     </div>
   );
 }

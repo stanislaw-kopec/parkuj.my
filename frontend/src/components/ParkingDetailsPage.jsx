@@ -102,11 +102,6 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
           <div className="d-stat-v">{stats.reservationsToday}</div>
           <div className="d-stat-c">szczyt {stats.peak}</div>
         </div>
-        <div className="d-stat">
-          <div className="d-stat-l">Przychód dziś</div>
-          <div className="d-stat-v">{stats.revenueToday.toLocaleString("pl")} zł</div>
-          <div className="d-stat-c">średnio {stats.avgStay}</div>
-        </div>
       </section>
 
       <section className="details-grid">

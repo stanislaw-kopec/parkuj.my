@@ -1,13 +1,14 @@
 package my.parkuj.application.dto;
 
-// Żądanie otwarcia bramy (np. z wezwania z urządzenia bramy)
+// Żądanie otwarcia bramy z kodem rezerwacji
 public class BarrierOpenRequestDTO {
-    private String reservationCode; // alternatywnie reservationId
-    private Long gateId;
+    private String reservationCode;
+    private Integer gateId;
 
     public String getReservationCode() { return reservationCode; }
     public void setReservationCode(String reservationCode) { this.reservationCode = reservationCode; }
-    public Long getGateId() { return gateId; }
-    public void setGateId(Long gateId) { this.gateId = gateId; }
+
+    public Integer getGateId() { return gateId; }
+    public void setGateId(Integer gateId) { this.gateId = gateId; }
 }
 

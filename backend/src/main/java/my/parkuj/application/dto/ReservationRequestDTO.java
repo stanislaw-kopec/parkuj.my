@@ -3,18 +3,29 @@ package my.parkuj.application.dto;
 import java.time.LocalDateTime;
 
 public class ReservationRequestDTO {
-    private Long customerId;
-    private Long parkingLotId;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private Integer parkingLotId;
+    private Integer vehicleId;
+    private String plateNumber;
+    private String countryCode;
+    private LocalDateTime startAt;
+    private LocalDateTime endAt;
 
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
-    public Long getParkingLotId() { return parkingLotId; }
-    public void setParkingLotId(Long parkingLotId) { this.parkingLotId = parkingLotId; }
-    public LocalDateTime getStartTime() { return startTime; }
-    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
-    public LocalDateTime getEndTime() { return endTime; }
-    public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+    public Integer getParkingLotId() { return parkingLotId; }
+    public void setParkingLotId(Integer parkingLotId) { this.parkingLotId = parkingLotId; }
+
+    public Integer getVehicleId() { return vehicleId; }
+    public void setVehicleId(Integer vehicleId) { this.vehicleId = vehicleId; }
+
+    public String getPlateNumber() { return plateNumber; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
+
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public LocalDateTime getStartAt() { return startAt; }
+    public void setStartAt(LocalDateTime startAt) { this.startAt = startAt; }
+
+    public LocalDateTime getEndAt() { return endAt; }
+    public void setEndAt(LocalDateTime endAt) { this.endAt = endAt; }
 }
 

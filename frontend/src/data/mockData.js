@@ -91,3 +91,22 @@ export const MOCK_RESERVATIONS = [
     spot: "C-03",
   },
 ];
+
+export const MOCK_VEHICLES = [
+  {
+    id: 1,
+    name: "Toyota Corolla",
+    plate: "WA 12345",
+    country: "PL",
+    primary: true,
+    hasActiveReservation: true,
+  },
+  {
+    id: 2,
+    name: "Skoda Octavia",
+    plate: "WA 67890",
+    country: "PL",
+    primary: false,
+    hasActiveReservation: false,
+  },
+];

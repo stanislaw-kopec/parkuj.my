@@ -5,16 +5,12 @@ import "leaflet/dist/leaflet.css";
 import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
+import { calcHours, getParkingAvailability } from "../data/parkingAvailability";
 
 const STEPS = [
   { n: 1, label: "Parking" },
   { n: 2, label: "Szczegóły" },
   { n: 3, label: "Płatność" },
-];
-
-const MOCK_VEHICLES = [
-  { id: 1, name: "Toyota Corolla", plate: "WA 12345", primary: true },
-  { id: 2, name: "Skoda Octavia", plate: "WA 67890", primary: false },
 ];
 
 const makeIcon = (available, selected) =>
@@ -35,25 +31,18 @@ const makeIcon = (available, selected) =>
     popupAnchor: [0, -22],
   });
 
-const calcHours = (from, to) => {
-  const [fH, fM] = from.split(":").map(Number);
-  const [tH, tM] = to.split(":").map(Number);
-  const diff = tH * 60 + tM - (fH * 60 + fM);
-  return Math.max(0, Math.round((diff / 60) * 10) / 10);
-};
-
 const fmtDate = (iso) => {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
 };
 
-export default function ReservePage({ setToast }) {
+export default function ReservePage({ vehicles = [], setPage, setToast }) {
   const [step, setStep]             = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch]         = useState("");
   const [vehicleMode, setVehicleMode] = useState("saved");
-  const [selectedVehicleId, setSelectedVehicleId] = useState(MOCK_VEHICLES[0]?.id || null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || null);
   const [plate, setPlate]           = useState("");
   const [date, setDate]             = useState("2026-04-20");
   const [timeFrom, setTimeFrom]     = useState("09:00");
@@ -63,14 +52,16 @@ export default function ReservePage({ setToast }) {
 
   const filteredParkings = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return MOCK_PARKINGS;
-    return MOCK_PARKINGS.filter((p) =>
-      `${p.name} ${p.address}`.toLowerCase().includes(query)
-    );
-  }, [search]);
+    return MOCK_PARKINGS.filter((p) => {
+      const matchesQuery = !query || `${p.name} ${p.address}`.toLowerCase().includes(query);
+      const hasAvailability = getParkingAvailability(p, date, timeFrom, timeTo) > 0;
+      return matchesQuery && hasAvailability;
+    });
+  }, [search, date, timeFrom, timeTo]);
 
   const parking = MOCK_PARKINGS.find((p) => p.id === selectedId);
-  const selectedVehicle = MOCK_VEHICLES.find((v) => v.id === selectedVehicleId);
+  const savedVehicles = vehicles.length ? vehicles : [];
+  const selectedVehicle = savedVehicles.find((v) => v.id === selectedVehicleId) || savedVehicles[0];
   const activePlate = vehicleMode === "saved" ? selectedVehicle?.plate || "" : plate;
   const hours = calcHours(timeFrom, timeTo);
   const total = Math.round(hours * (parking?.price || 0));
@@ -88,7 +79,7 @@ export default function ReservePage({ setToast }) {
     setSelectedId(null);
     setSearch("");
     setVehicleMode("saved");
-    setSelectedVehicleId(MOCK_VEHICLES[0]?.id || null);
+    setSelectedVehicleId(savedVehicles[0]?.id || null);
     setPlate("");
     setBlik(["", "", "", "", "", ""]);
     setToast("✓ Rezerwacja potwierdzona! Szlaban otworzy się automatycznie.");
@@ -154,11 +145,37 @@ export default function ReservePage({ setToast }) {
         />
       </div>
 
+      <div className="reservation-filters">
+        <div className="fg">
+          <label className="fl">Data</label>
+          <input className="fi" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div className="fg">
+          <label className="fl">Od</label>
+          <input className="fi" type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+        </div>
+        <div className="fg">
+          <label className="fl">Do</label>
+          <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+        </div>
+        <div className="filter-summary">
+          <span>{hours > 0 ? `${hours} h postoju` : "Wybierz poprawne godziny"}</span>
+          <strong>{filteredParkings.length} parkingów dostępnych</strong>
+        </div>
+      </div>
+
       <div className="reserve-pick-layout">
         <div className="reserve-list">
           {filteredParkings.length > 0 ? (
             filteredParkings.map((p) => (
-              <PCard key={p.id} p={p} selected={selectedId === p.id} onClick={() => setSelectedId(p.id)} />
+              <PCard
+                key={p.id}
+                p={p}
+                availability={getParkingAvailability(p, date, timeFrom, timeTo)}
+                selected={selectedId === p.id}
+                onClick={() => setSelectedId(p.id)}
+                onDetails={() => setPage("parkingDetails", { parkingId: p.id })}
+              />
             ))
           ) : (
             <div className="empty">
@@ -182,11 +199,13 @@ export default function ReservePage({ setToast }) {
               subdomains="abcd"
               maxZoom={20}
             />
-            {MOCK_PARKINGS.map((p) => (
+            {MOCK_PARKINGS.map((p) => {
+              const availability = getParkingAvailability(p, date, timeFrom, timeTo);
+              return (
               <Marker
                 key={p.id}
                 position={p.coords}
-                icon={makeIcon(p.available, selectedId === p.id)}
+                icon={makeIcon(availability, selectedId === p.id)}
                 eventHandlers={{ click: () => setSelectedId(p.id) }}
               >
                 <Popup>
@@ -194,15 +213,21 @@ export default function ReservePage({ setToast }) {
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{p.name}</div>
                     <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>{p.address}</div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                      <span style={{ color: p.available < 10 ? "#ef4444" : "#22c55e", fontWeight: 600 }}>
-                        {p.available} wolnych
+                      <span style={{ color: availability < 10 ? "#ef4444" : "#22c55e", fontWeight: 600 }}>
+                        {availability} wolnych
                       </span>
                       <span style={{ color: "#F17300", fontWeight: 700 }}>{p.price} zł/h</span>
                     </div>
+                    <button
+                      style={{ marginTop: 8, border: "none", background: "#F17300", color: "#fff", borderRadius: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      onClick={() => setPage("parkingDetails", { parkingId: p.id })}
+                    >
+                      Szczegóły
+                    </button>
                   </div>
                 </Popup>
               </Marker>
-            ))}
+            )})}
           </MapContainer>
         </div>
       </div>
@@ -240,10 +265,10 @@ export default function ReservePage({ setToast }) {
 
           {vehicleMode === "saved" ? (
             <div className="vehicle-list">
-              {MOCK_VEHICLES.map((vehicle) => (
+              {savedVehicles.map((vehicle) => (
                 <button
                   key={vehicle.id}
-                  className={`vehicle-card ${selectedVehicleId === vehicle.id ? "on" : ""}`}
+                  className={`vehicle-card ${selectedVehicle?.id === vehicle.id ? "on" : ""}`}
                   onClick={() => setSelectedVehicleId(vehicle.id)}
                 >
                   <span>
@@ -253,6 +278,12 @@ export default function ReservePage({ setToast }) {
                   <span className="vehicle-plate">{vehicle.plate}</span>
                 </button>
               ))}
+              {!savedVehicles.length && (
+                <div className="empty-state">
+                  <I.Car />
+                  <span>Nie masz jeszcze zapisanego pojazdu.</span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="fg">

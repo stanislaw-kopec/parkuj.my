@@ -1,53 +1,65 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-
+import jakarta.persistence.*;
 import my.parkuj.application.enums.AdminRole;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "admin_users")
 public class AdminUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "admin_user_id")
+    private Integer adminUserId;
 
-    private String username;
-    private String password;
-    private AdminRole role;
+    @Column(unique = true, nullable = false)
+    private String email;
 
-    public Long getId() {
-        return id;
+    @Column(nullable = false)
+    private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AdminRole role = AdminRole.OPERATOR;
+
+    private String status;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-    public String getUsername() {
-        return username;
-    }
+    public Integer getAdminUserId() { return adminUserId; }
+    public void setAdminUserId(Integer adminUserId) { this.adminUserId = adminUserId; }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getPassword() {
-        return password;
-    }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public AdminRole getRole() { return role; }
+    public void setRole(AdminRole role) { this.role = role; }
 
-    public AdminRole getRole() {
-        return role;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public void setRole(AdminRole role) {
-        this.role = role;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

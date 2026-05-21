@@ -1,42 +1,66 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import my.parkuj.application.enums.BarrierDirection;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "barrier_gates")
 public class BarrierGate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "barrier_gate_id")
+    private Integer barrierGateId;
 
-    private String name;
-    private String location;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parking_lot_id", nullable = false)
+    private ParkingLot parkingLot;
 
-    public Long getId() {
-        return id;
+    @Column(nullable = false)
+    private String gateName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BarrierDirection direction;
+
+    private String status;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-    public String getName() {
-        return name;
-    }
+    public Integer getBarrierGateId() { return barrierGateId; }
+    public void setBarrierGateId(Integer barrierGateId) { this.barrierGateId = barrierGateId; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public ParkingLot getParkingLot() { return parkingLot; }
+    public void setParkingLot(ParkingLot parkingLot) { this.parkingLot = parkingLot; }
 
-    public String getLocation() {
-        return location;
-    }
+    public String getGateName() { return gateName; }
+    public void setGateName(String gateName) { this.gateName = gateName; }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
+    public BarrierDirection getDirection() { return direction; }
+    public void setDirection(BarrierDirection direction) { this.direction = direction; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

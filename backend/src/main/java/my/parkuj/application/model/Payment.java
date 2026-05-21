@@ -1,65 +1,93 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import my.parkuj.application.enums.PaymentMethod;
+import my.parkuj.application.enums.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import my.parkuj.application.enums.PaymentMethod;
-import my.parkuj.application.enums.PaymentStatus;
-
 @Entity
+@Table(name = "payments")
 public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "payment_id")
+    private Integer paymentId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservation_id")
+    private Reservation reservation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parking_session_id")
+    private ParkingSession parkingSession;
+
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
-    private PaymentMethod method;
-    private PaymentStatus status;
+
+    @Column(length = 3)
+    private String currency = "PLN";
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus status = PaymentStatus.PENDING;
+
+    private String providerReference;
+
     private LocalDateTime paidAt;
 
-    public Long getId() {
-        return id;
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-    public BigDecimal getAmount() {
-        return amount;
-    }
+    public Integer getPaymentId() { return paymentId; }
+    public void setPaymentId(Integer paymentId) { this.paymentId = paymentId; }
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
+    public Reservation getReservation() { return reservation; }
+    public void setReservation(Reservation reservation) { this.reservation = reservation; }
 
-    public PaymentMethod getMethod() {
-        return method;
-    }
+    public ParkingSession getParkingSession() { return parkingSession; }
+    public void setParkingSession(ParkingSession parkingSession) { this.parkingSession = parkingSession; }
 
-    public void setMethod(PaymentMethod method) {
-        this.method = method;
-    }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
-    public PaymentStatus getStatus() {
-        return status;
-    }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
-    }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(PaymentMethod paymentMethod) { this.paymentMethod = paymentMethod; }
 
-    public LocalDateTime getPaidAt() {
-        return paidAt;
-    }
+    public PaymentStatus getStatus() { return status; }
+    public void setStatus(PaymentStatus status) { this.status = status; }
 
-    public void setPaidAt(LocalDateTime paidAt) {
-        this.paidAt = paidAt;
-    }
+    public String getProviderReference() { return providerReference; }
+    public void setProviderReference(String providerReference) { this.providerReference = providerReference; }
+
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

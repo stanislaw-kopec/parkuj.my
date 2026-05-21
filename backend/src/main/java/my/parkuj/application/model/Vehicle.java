@@ -1,42 +1,64 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "vehicles", uniqueConstraints = @UniqueConstraint(columnNames = {"plateNumber", "countryCode"}))
 public class Vehicle {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "vehicle_id")
+    private Integer vehicleId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
+
+    @Column(nullable = false)
     private String plateNumber;
-    private String model;
 
-    public Long getId() {
-        return id;
+    @Column(nullable = false)
+    private String countryCode;
+
+    private boolean isPrimary = false;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-    public String getPlateNumber() {
-        return plateNumber;
-    }
+    public Integer getVehicleId() { return vehicleId; }
+    public void setVehicleId(Integer vehicleId) { this.vehicleId = vehicleId; }
 
-    public void setPlateNumber(String plateNumber) {
-        this.plateNumber = plateNumber;
-    }
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
 
-    public String getModel() {
-        return model;
-    }
+    public String getPlateNumber() { return plateNumber; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
 
-    public void setModel(String model) {
-        this.model = model;
-    }
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public boolean isPrimary() { return isPrimary; }
+    public void setPrimary(boolean primary) { isPrimary = primary; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

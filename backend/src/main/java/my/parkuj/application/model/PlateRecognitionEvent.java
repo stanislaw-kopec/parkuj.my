@@ -1,54 +1,74 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import my.parkuj.application.enums.PlateRecognitionResult;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import my.parkuj.application.enums.PlateRecognitionResult;
-
 @Entity
+@Table(name = "plate_recognition_events")
 public class PlateRecognitionEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "event_id")
+    private Integer eventId;
 
-    private String plate;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parking_session_id")
+    private ParkingSession parkingSession;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "barrier_gate_id", nullable = false)
+    private BarrierGate barrierGate;
+
+    @Column(nullable = false)
+    private String plateNumber;
+
+    @Column(precision = 5, scale = 2)
+    private BigDecimal confidence;
+
+    @Column(nullable = false)
+    private LocalDateTime capturedAt;
+
+    private String imageUrl;
+
+    @Enumerated(EnumType.STRING)
     private PlateRecognitionResult result;
-    private LocalDateTime eventTime;
 
-    public Long getId() {
-        return id;
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Integer getEventId() { return eventId; }
+    public void setEventId(Integer eventId) { this.eventId = eventId; }
 
-    public String getPlate() {
-        return plate;
-    }
+    public ParkingSession getParkingSession() { return parkingSession; }
+    public void setParkingSession(ParkingSession parkingSession) { this.parkingSession = parkingSession; }
 
-    public void setPlate(String plate) {
-        this.plate = plate;
-    }
+    public BarrierGate getBarrierGate() { return barrierGate; }
+    public void setBarrierGate(BarrierGate barrierGate) { this.barrierGate = barrierGate; }
 
-    public PlateRecognitionResult getResult() {
-        return result;
-    }
+    public String getPlateNumber() { return plateNumber; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
 
-    public void setResult(PlateRecognitionResult result) {
-        this.result = result;
-    }
+    public BigDecimal getConfidence() { return confidence; }
+    public void setConfidence(BigDecimal confidence) { this.confidence = confidence; }
 
-    public LocalDateTime getEventTime() {
-        return eventTime;
-    }
+    public LocalDateTime getCapturedAt() { return capturedAt; }
+    public void setCapturedAt(LocalDateTime capturedAt) { this.capturedAt = capturedAt; }
 
-    public void setEventTime(LocalDateTime eventTime) {
-        this.eventTime = eventTime;
-    }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public PlateRecognitionResult getResult() { return result; }
+    public void setResult(PlateRecognitionResult result) { this.result = result; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
 

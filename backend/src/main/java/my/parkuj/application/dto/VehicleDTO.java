@@ -1,15 +1,33 @@
 package my.parkuj.application.dto;
 
-public class VehicleDTO {
-    private Long id;
-    private String plateNumber;
-    private String model;
+import my.parkuj.application.model.Vehicle;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+public class VehicleDTO {
+    private Integer vehicleId;
+    private String plateNumber;
+    private String countryCode;
+    private boolean isPrimary;
+
+    public Integer getVehicleId() { return vehicleId; }
+    public void setVehicleId(Integer vehicleId) { this.vehicleId = vehicleId; }
+
     public String getPlateNumber() { return plateNumber; }
     public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
-    public String getModel() { return model; }
-    public void setModel(String model) { this.model = model; }
+
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+
+    public boolean isPrimary() { return isPrimary; }
+    public void setPrimary(boolean primary) { isPrimary = primary; }
+
+    public static VehicleDTO fromEntity(Vehicle vehicle) {
+        if (vehicle == null) return null;
+        VehicleDTO dto = new VehicleDTO();
+        dto.vehicleId = vehicle.getVehicleId();
+        dto.plateNumber = vehicle.getPlateNumber();
+        dto.countryCode = vehicle.getCountryCode();
+        dto.isPrimary = vehicle.isPrimary();
+        return dto;
+    }
 }
 

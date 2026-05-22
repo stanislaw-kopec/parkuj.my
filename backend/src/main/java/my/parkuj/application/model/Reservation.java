@@ -88,124 +88,48 @@ public class Reservation {
         updatedAt = LocalDateTime.now();
     }
 
-    public Integer getReservationId() {
-        return reservationId;
-    }
+    public Integer getReservationId() { return reservationId; }
+    public void setReservationId(Integer reservationId) { this.reservationId = reservationId; }
 
-    public void setReservationId(Integer reservationId) {
-        this.reservationId = reservationId;
-    }
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
 
-    public Customer getCustomer() {
-        return customer;
-    }
+    public Vehicle getVehicle() { return vehicle; }
+    public void setVehicle(Vehicle vehicle) { this.vehicle = vehicle; }
 
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
+    public ParkingLot getParkingLot() { return parkingLot; }
+    public void setParkingLot(ParkingLot parkingLot) { this.parkingLot = parkingLot; }
 
-    public Vehicle getVehicle() {
-        return vehicle;
-    }
+    public PricingPlan getPricingPlan() { return pricingPlan; }
+    public void setPricingPlan(PricingPlan pricingPlan) { this.pricingPlan = pricingPlan; }
 
-    public void setVehicle(Vehicle vehicle) {
-        this.vehicle = vehicle;
-    }
+    public String getReservationCode() { return reservationCode; }
+    public void setReservationCode(String reservationCode) { this.reservationCode = reservationCode; }
 
-    public ParkingLot getParkingLot() {
-        return parkingLot;
-    }
+    public LocalDateTime getStartAt() { return startAt; }
+    public void setStartAt(LocalDateTime startAt) { this.startAt = startAt; }
 
-    public void setParkingLot(ParkingLot parkingLot) {
-        this.parkingLot = parkingLot;
-    }
+    public LocalDateTime getEndAt() { return endAt; }
+    public void setEndAt(LocalDateTime endAt) { this.endAt = endAt; }
 
-    public PricingPlan getPricingPlan() {
-        return pricingPlan;
-    }
+    public ReservationStatus getStatus() { return status; }
+    public void setStatus(ReservationStatus status) { this.status = status; }
 
-    public void setPricingPlan(PricingPlan pricingPlan) {
-        this.pricingPlan = pricingPlan;
-    }
+    public BigDecimal getPriceEstimated() { return priceEstimated; }
+    public void setPriceEstimated(BigDecimal priceEstimated) { this.priceEstimated = priceEstimated; }
 
-    public String getReservationCode() {
-        return reservationCode;
-    }
+    public LocalDateTime getReservedAt() { return reservedAt; }
+    public void setReservedAt(LocalDateTime reservedAt) { this.reservedAt = reservedAt; }
 
-    public void setReservationCode(String reservationCode) {
-        this.reservationCode = reservationCode;
-    }
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 
-    public LocalDateTime getStartAt() {
-        return startAt;
-    }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 
-    public void setStartAt(LocalDateTime startAt) {
-        this.startAt = startAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public LocalDateTime getEndAt() {
-        return endAt;
-    }
-
-    public void setEndAt(LocalDateTime endAt) {
-        this.endAt = endAt;
-    }
-
-    public ReservationStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ReservationStatus status) {
-        this.status = status;
-    }
-
-    public BigDecimal getPriceEstimated() {
-        return priceEstimated;
-    }
-
-    public void setPriceEstimated(BigDecimal priceEstimated) {
-        this.priceEstimated = priceEstimated;
-    }
-
-    public LocalDateTime getReservedAt() {
-        return reservedAt;
-    }
-
-    public void setReservedAt(LocalDateTime reservedAt) {
-        this.reservedAt = reservedAt;
-    }
-
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(LocalDateTime expiresAt) {
-        this.expiresAt = expiresAt;
-    }
-
-    public Integer getVersion() {
-        return version;
-    }
-
-    public void setVersion(Integer version) {
-        this.version = version;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

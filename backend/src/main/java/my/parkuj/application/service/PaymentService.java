@@ -27,16 +27,18 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setAmount(reservation.getPriceEstimated());
-        payment.setMethod(method);
+        payment.setCurrency(reservation.getCurrency());
+        payment.setPaymentMethod(method);
         payment.setStatus(PaymentStatus.COMPLETED);
         payment.setPaidAt(LocalDateTime.now());
         payment = paymentRepository.save(payment);
 
         PaymentDTO dto = new PaymentDTO();
-        dto.setId(payment.getId());
+        dto.setPaymentId(payment.getPaymentId());
         dto.setReservationId(reservationId);
         dto.setAmount(payment.getAmount());
-        dto.setMethod(payment.getMethod());
+        dto.setCurrency(payment.getCurrency());
+        dto.setMethod(payment.getPaymentMethod());
         dto.setStatus(payment.getStatus());
         dto.setPaidAt(payment.getPaidAt());
         return dto;

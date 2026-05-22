@@ -11,13 +11,19 @@ public class PriceEstimateDTO {
 
     public Integer getParkingLotId() { return parkingLotId; }
     public void setParkingLotId(Integer parkingLotId) { this.parkingLotId = parkingLotId; }
+
     public BigDecimal getHours() { return hours; }
     public void setHours(BigDecimal hours) { this.hours = hours; }
+
     public BigDecimal getPricePerHour() { return pricePerHour; }
     public void setPricePerHour(BigDecimal pricePerHour) { this.pricePerHour = pricePerHour; }
+
     public BigDecimal getEstimatedPrice() { return estimatedPrice; }
     public void setEstimatedPrice(BigDecimal estimatedPrice) { this.estimatedPrice = estimatedPrice; }
+
+    public BigDecimal getTotalPrice() { return estimatedPrice; }
+    public void setTotalPrice(BigDecimal totalPrice) { this.estimatedPrice = totalPrice; }
+
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
 }
-

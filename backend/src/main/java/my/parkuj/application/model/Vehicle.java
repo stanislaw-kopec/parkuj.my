@@ -62,67 +62,30 @@ public class Vehicle {
         updatedAt = LocalDateTime.now();
     }
 
-    public Integer getVehicleId() {
-        return vehicleId;
-    }
+    public Integer getVehicleId() { return vehicleId; }
+    public void setVehicleId(Integer vehicleId) { this.vehicleId = vehicleId; }
 
-    public void setVehicleId(Integer vehicleId) {
-        this.vehicleId = vehicleId;
-    }
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
 
-    public Customer getCustomer() {
-        return customer;
-    }
+    public String getPlateNumber() { return plateNumber; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
 
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
+    public String getCountryCode() { return countryCode; }
+    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
 
-    public String getPlateNumber() {
-        return plateNumber;
-    }
+    public boolean isPrimaryVehicle() { return primaryVehicle; }
+    public void setPrimaryVehicle(boolean primaryVehicle) { this.primaryVehicle = primaryVehicle; }
 
-    public void setPlateNumber(String plateNumber) {
-        this.plateNumber = plateNumber;
-    }
+    public boolean isPrimary() { return primaryVehicle; }
+    public void setPrimary(boolean primary) { this.primaryVehicle = primary; }
 
-    public String getCountryCode() {
-        return countryCode;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setCountryCode(String countryCode) {
-        this.countryCode = countryCode;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public boolean isPrimaryVehicle() {
-        return primaryVehicle;
-    }
-
-    public void setPrimaryVehicle(boolean primaryVehicle) {
-        this.primaryVehicle = primaryVehicle;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<Reservation> getReservations() {
-        return reservations;
-    }
-
-    public void setReservations(List<Reservation> reservations) {
-        this.reservations = reservations;
-    }
+    public List<Reservation> getReservations() { return reservations; }
+    public void setReservations(List<Reservation> reservations) { this.reservations = reservations; }
 }

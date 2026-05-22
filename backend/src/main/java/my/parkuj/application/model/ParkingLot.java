@@ -67,99 +67,39 @@ public class ParkingLot {
         updatedAt = LocalDateTime.now();
     }
 
-    public Integer getParkingLotId() {
-        return parkingLotId;
-    }
+    public Integer getParkingLotId() { return parkingLotId; }
+    public void setParkingLotId(Integer parkingLotId) { this.parkingLotId = parkingLotId; }
 
-    public void setParkingLotId(Integer parkingLotId) {
-        this.parkingLotId = parkingLotId;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getName() {
-        return name;
-    }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public BigDecimal getLatitude() { return latitude; }
+    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
 
-    public String getAddress() {
-        return address;
-    }
+    public BigDecimal getLongitude() { return longitude; }
+    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
+    public Integer getPlacesCount() { return placesCount; }
+    public void setPlacesCount(Integer placesCount) { this.placesCount = placesCount; }
 
-    public BigDecimal getLatitude() {
-        return latitude;
-    }
+    public Integer getReservablePlacesCount() { return reservablePlacesCount; }
+    public void setReservablePlacesCount(Integer reservablePlacesCount) { this.reservablePlacesCount = reservablePlacesCount; }
 
-    public void setLatitude(BigDecimal latitude) {
-        this.latitude = latitude;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public BigDecimal getLongitude() {
-        return longitude;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setLongitude(BigDecimal longitude) {
-        this.longitude = longitude;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public Integer getPlacesCount() {
-        return placesCount;
-    }
+    public List<PricingPlan> getPricingPlans() { return pricingPlans; }
+    public void setPricingPlans(List<PricingPlan> pricingPlans) { this.pricingPlans = pricingPlans; }
 
-    public void setPlacesCount(Integer placesCount) {
-        this.placesCount = placesCount;
-    }
-
-    public Integer getReservablePlacesCount() {
-        return reservablePlacesCount;
-    }
-
-    public void setReservablePlacesCount(Integer reservablePlacesCount) {
-        this.reservablePlacesCount = reservablePlacesCount;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<PricingPlan> getPricingPlans() {
-        return pricingPlans;
-    }
-
-    public void setPricingPlans(List<PricingPlan> pricingPlans) {
-        this.pricingPlans = pricingPlans;
-    }
-
-    public List<Reservation> getReservations() {
-        return reservations;
-    }
-
-    public void setReservations(List<Reservation> reservations) {
-        this.reservations = reservations;
-    }
+    public List<Reservation> getReservations() { return reservations; }
+    public void setReservations(List<Reservation> reservations) { this.reservations = reservations; }
 }

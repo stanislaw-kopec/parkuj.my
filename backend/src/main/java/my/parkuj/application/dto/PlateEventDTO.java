@@ -1,26 +1,29 @@
 package my.parkuj.application.dto;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import my.parkuj.application.enums.BarrierDirection;
 
-import my.parkuj.application.enums.PlateRecognitionResult;
-
-// DTO przychodzący z Python OCR serwisu
+// DTO przychodzący z Python serwisu OCR
 public class PlateEventDTO {
-    private String plate;
-    private Double confidence;
-    private PlateRecognitionResult result;
-    private LocalDateTime eventTime;
-    private Long gateId; // opcjonalnie id bramy/kamery
+    private String plateNumber;
+    private BigDecimal confidence;
+    private Integer gateId;
+    private BarrierDirection direction;
+    private String imageUrl;
 
-    public String getPlate() { return plate; }
-    public void setPlate(String plate) { this.plate = plate; }
-    public Double getConfidence() { return confidence; }
-    public void setConfidence(Double confidence) { this.confidence = confidence; }
-    public PlateRecognitionResult getResult() { return result; }
-    public void setResult(PlateRecognitionResult result) { this.result = result; }
-    public LocalDateTime getEventTime() { return eventTime; }
-    public void setEventTime(LocalDateTime eventTime) { this.eventTime = eventTime; }
-    public Long getGateId() { return gateId; }
-    public void setGateId(Long gateId) { this.gateId = gateId; }
+    public String getPlateNumber() { return plateNumber; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber; }
+
+    public BigDecimal getConfidence() { return confidence; }
+    public void setConfidence(BigDecimal confidence) { this.confidence = confidence; }
+
+    public Integer getGateId() { return gateId; }
+    public void setGateId(Integer gateId) { this.gateId = gateId; }
+
+    public BarrierDirection getDirection() { return direction; }
+    public void setDirection(BarrierDirection direction) { this.direction = direction; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }
 

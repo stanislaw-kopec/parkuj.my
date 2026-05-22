@@ -1,55 +1,68 @@
 package my.parkuj.application.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import my.parkuj.application.enums.BarrierActionType;
 import java.time.LocalDateTime;
 
-import my.parkuj.application.enums.BarrierActionType;
-import my.parkuj.application.enums.BarrierDirection;
-
 @Entity
+@Table(name = "barrier_actions")
 public class BarrierAction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "barrier_action_id")
+    private Integer barrierActionId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "barrier_gate_id", nullable = false)
+    private BarrierGate barrierGate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parking_session_id")
+    private ParkingSession parkingSession;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_user_id")
+    private AdminUser adminUser;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private BarrierActionType actionType;
-    private BarrierDirection direction;
-    private LocalDateTime actionTime;
 
-    public Long getId() {
-        return id;
-    }
+    private String reason;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    private String actionResult;
 
-    public BarrierActionType getActionType() {
-        return actionType;
-    }
+    @Column(nullable = false)
+    private LocalDateTime requestedAt;
 
-    public void setActionType(BarrierActionType actionType) {
-        this.actionType = actionType;
-    }
+    private LocalDateTime executedAt;
 
-    public BarrierDirection getDirection() {
-        return direction;
-    }
+    public Integer getBarrierActionId() { return barrierActionId; }
+    public void setBarrierActionId(Integer barrierActionId) { this.barrierActionId = barrierActionId; }
 
-    public void setDirection(BarrierDirection direction) {
-        this.direction = direction;
-    }
+    public BarrierGate getBarrierGate() { return barrierGate; }
+    public void setBarrierGate(BarrierGate barrierGate) { this.barrierGate = barrierGate; }
 
-    public LocalDateTime getActionTime() {
-        return actionTime;
-    }
+    public ParkingSession getParkingSession() { return parkingSession; }
+    public void setParkingSession(ParkingSession parkingSession) { this.parkingSession = parkingSession; }
 
-    public void setActionTime(LocalDateTime actionTime) {
-        this.actionTime = actionTime;
-    }
+    public AdminUser getAdminUser() { return adminUser; }
+    public void setAdminUser(AdminUser adminUser) { this.adminUser = adminUser; }
+
+    public BarrierActionType getActionType() { return actionType; }
+    public void setActionType(BarrierActionType actionType) { this.actionType = actionType; }
+
+    public String getReason() { return reason; }
+    public void setReason(String reason) { this.reason = reason; }
+
+    public String getActionResult() { return actionResult; }
+    public void setActionResult(String actionResult) { this.actionResult = actionResult; }
+
+    public LocalDateTime getRequestedAt() { return requestedAt; }
+    public void setRequestedAt(LocalDateTime requestedAt) { this.requestedAt = requestedAt; }
+
+    public LocalDateTime getExecutedAt() { return executedAt; }
+    public void setExecutedAt(LocalDateTime executedAt) { this.executedAt = executedAt; }
 }
 

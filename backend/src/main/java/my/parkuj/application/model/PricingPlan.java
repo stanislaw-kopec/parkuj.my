@@ -61,75 +61,30 @@ public class PricingPlan {
         updatedAt = LocalDateTime.now();
     }
 
-    public Integer getPricingPlanId() {
-        return pricingPlanId;
-    }
+    public Integer getPricingPlanId() { return pricingPlanId; }
+    public void setPricingPlanId(Integer pricingPlanId) { this.pricingPlanId = pricingPlanId; }
 
-    public void setPricingPlanId(Integer pricingPlanId) {
-        this.pricingPlanId = pricingPlanId;
-    }
+    public ParkingLot getParkingLot() { return parkingLot; }
+    public void setParkingLot(ParkingLot parkingLot) { this.parkingLot = parkingLot; }
 
-    public ParkingLot getParkingLot() {
-        return parkingLot;
-    }
+    public BigDecimal getPricePerHour() { return pricePerHour; }
+    public void setPricePerHour(BigDecimal pricePerHour) { this.pricePerHour = pricePerHour; }
 
-    public void setParkingLot(ParkingLot parkingLot) {
-        this.parkingLot = parkingLot;
-    }
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
-    public BigDecimal getPricePerHour() {
-        return pricePerHour;
-    }
+    public LocalDateTime getValidFrom() { return validFrom; }
+    public void setValidFrom(LocalDateTime validFrom) { this.validFrom = validFrom; }
 
-    public void setPricePerHour(BigDecimal pricePerHour) {
-        this.pricePerHour = pricePerHour;
-    }
+    public LocalDateTime getValidTo() { return validTo; }
+    public void setValidTo(LocalDateTime validTo) { this.validTo = validTo; }
 
-    public String getCurrency() {
-        return currency;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public LocalDateTime getValidFrom() {
-        return validFrom;
-    }
-
-    public void setValidFrom(LocalDateTime validFrom) {
-        this.validFrom = validFrom;
-    }
-
-    public LocalDateTime getValidTo() {
-        return validTo;
-    }
-
-    public void setValidTo(LocalDateTime validTo) {
-        this.validTo = validTo;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<Reservation> getReservations() {
-        return reservations;
-    }
-
-    public void setReservations(List<Reservation> reservations) {
-        this.reservations = reservations;
-    }
+    public List<Reservation> getReservations() { return reservations; }
+    public void setReservations(List<Reservation> reservations) { this.reservations = reservations; }
 }

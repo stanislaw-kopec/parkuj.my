@@ -625,20 +625,38 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 - [x] Wszystkie **dto** (puste klasy)
 - [x] Wszystkie **enums** (`ReservationStatus, ParkingSessionStatus, PaymentMethod` itd.)
 
-### Do zrobienia (backend — wypełnienie logiki)
-- [ ] Rozbudowa entity `Customer` o pełne pola wg schematu DB (googleSub, firstName, lastName, phone, status, itp.)
-- [ ] Rozbudowa pozostałych encji o pełne pola + relacje JPA (`@ManyToOne`, `@OneToMany`)
-- [ ] Metody w repositories (custom queries)
-- [ ] Logika w services
-- [ ] Endpointy w controllers
-- [ ] Google OAuth2 + JWT auth
-- [ ] PostgreSQL schema migration (Flyway/Liquibase)
-- [ ] OCR serwis (Python/FastAPI + OpenCV/EasyOCR)
-- [ ] Płatności (BLIK, karta, gotówka — provider)
-- [ ] Email z kodem rezerwacji (12 znaków)
+### Backend — MVP API (PR #9 + #10, Stanisław Kopeć)
+- [x] Encje rozbudowane o pełne pola wg schematu DB + relacje JPA (`@ManyToOne`, `@OneToMany`)
+- [x] **ParkingLotController** — `GET /api/parking-lots`, `/{id}`, `/{id}/availability`, `/{id}/price` — w pełni działające
+- [x] **VehicleController** — `GET/POST /api/vehicles`, `PATCH /{id}/primary`, `DELETE /{id}` — w pełni działające
+- [x] **ReservationController** — `POST/GET /api/reservations`, `/{id}`, `/{id}/confirm`, `DELETE /{id}` — w pełni działające
+- [x] **ReservationService** — pełna logika:
+  - generowanie unikalnego kodu 12-znakowego (`SecureRandom`, alfabet bez mylących znaków)
+  - sprawdzanie dostępności miejsc (`countOverlappingReservations`)
+  - optimistic locking (`@Version`)
+  - wygasanie rezerwacji PENDING po 15 minutach (`expiresAt`)
+  - walidacja danych wejściowych
+- [x] **ParkingLotService** — dostępność miejsc, wycena przez `PricingService`
+- [x] **DataInitializer** — seed danych przy starcie (gdy baza pusta):
+  - 1 klient testowy (`test@parkuj.my`, tablica `WW12345`)
+  - 5 parkingów warszawskich z cennikami (Złote Tarasy, Kopernik, Arkadia, Mokotów BP, Lotnisko)
+- [x] **GlobalExceptionHandler** — obsługa błędów HTTP
+- [x] **HealthController** — endpoint `/health`
+- [x] **Swagger/OpenAPI** — dostępny po uruchomieniu (`/swagger-ui.html`)
+- [x] **ErrorResponseDTO** — ujednolicony format błędów
+
+### Do zrobienia (backend)
+- [ ] CustomerController — logika CRUD
+- [ ] AuthController — Google OAuth2 + JWT
+- [ ] PaymentController — logika płatności
+- [ ] BarrierController — integracja z OCR
+- [ ] AdminController — panel operatora
+- [ ] VehicleService — blokada usunięcia przy aktywnej sesji/rezerwacji
+- [ ] EmailService — wysyłka kodu rezerwacji
+- [ ] ParkingSessionService — wjazd/wyjazd, overtime
 - [ ] Panel admina (/admin — osobna ścieżka, email+bcrypt)
-- [ ] Overtime detection + powiadomienia
-- [ ] Walk-in flow
+- [ ] OCR serwis (Python/FastAPI)
+- [ ] Płatności (provider)
 
 ---
 

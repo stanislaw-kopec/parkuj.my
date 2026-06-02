@@ -1,6 +1,6 @@
 # parkuj.my — Project Wiki (Memory File)
 
-> **Cel tego pliku:** Trwała pamięć projektu dla Claude Code. Zawiera pełny kontekst — nie traci się przy czyszczeniu context window. Aktualizować przy każdej istotnej zmianie.
+> **Cel tego pliku:** Trwała pamięć projektu dla Codex. Zawiera pełny kontekst — nie traci się przy czyszczeniu context window. Aktualizować przy każdej istotnej zmianie.
 
 ---
 
@@ -12,7 +12,7 @@
 | Typ | Projekt zaliczeniowy — zespołowy |
 | Uczelnia | — |
 | Repozytorium | wokapala/parkuj.my |
-| Branch roboczy | `claude/review-repo-files-4RXMt` |
+| Branch roboczy | `Codex/review-repo-files-4RXMt` |
 
 ### Skład zespołu
 - Michał Kalinowski
@@ -87,15 +87,14 @@ Zależności:
 
 ```
 parkuj.my/
-├── CLAUDE.md                          ← ten plik (wiki projektu)
-├── ENDPOINT-LIST.md                   ← lista endpointów API zmapowanych do komponentów
+├── AGENTS.md                          ← ten plik (wiki projektu)
 ├── frontend/                          ← React 18 + Vite
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
 │   └── src/
 │       ├── main.jsx
-│       ├── App.jsx                    ← routing URL-based (history.pushState)
+│       ├── App.jsx
 │       ├── index.css
 │       ├── components/
 │       │   ├── Landing.jsx            ← strona marketingowa (niezalogowany)
@@ -108,14 +107,9 @@ parkuj.my/
 │       │   ├── JoinPage.jsx
 │       │   ├── Dashboard.jsx
 │       │   ├── ContactPage.jsx
-│       │   ├── PCard.jsx
-│       │   ├── UserPage.jsx           ← konto użytkownika + pojazdy (PR #8, Michał)
-│       │   ├── AddCarPage.jsx         ← dodawanie pojazdu (PR #8, Michał)
-│       │   ├── SettingsPage.jsx       ← ustawienia konta (PR #8, Michał)
-│       │   └── ParkingDetailsPage.jsx ← szczegóły parkingu z mapą (PR #8, Michał)
+│       │   └── PCard.jsx
 │       ├── data/
-│       │   ├── mockData.js
-│       │   └── parkingAvailability.js ← helper do dostępności miejsc
+│       │   └── mockData.js
 │       └── icons/
 │           └── index.jsx
 └── backend/                           ← Java 17 + Spring Boot 4.0.6
@@ -134,49 +128,31 @@ parkuj.my/
 > Frontend był wcześniej w `src/` na roota — przeniesiony do `frontend/` w PR #3 (Stanisław Kopeć).
 > Backend: szkielet Maven w PR #3, pełna struktura pakietów w PR #5 (Stanisław Kopeć).
 > AuthPage dodany w PR #7 (Michał Kalinowski).
-> UserPage, AddCarPage, SettingsPage, ParkingDetailsPage, routing URL-based, ENDPOINT-LIST.md — PR #8 (Michał Kalinowski).
 
 ---
 
 ## 5. Architektura frontendu (React prototype)
 
 ### Routing
-Brak react-router. Routing przez `useState` + `history.pushState` w `App.jsx` (PR #8):
+Brak react-router. Routing przez `useState` w `App.jsx`:
 
 ```
-/           landing
-/auth       AuthPage
-/home       HomePage
-/reservation  ReservePage
-/reservations Reservations
-/join       JoinPage
-/dashboard  Dashboard
-/contact    ContactPage
-/settings   SettingsPage
-/user       UserPage
-/add-car    AddCarPage
-/parking/:id  ParkingDetailsPage
+landing → home → reserve / reservations / map / contact
+                 join → dashboard (rola: owner)
 ```
-
-Obsługa przycisku Wstecz w przeglądarce przez `popstate`.
 
 ### Strony i komponenty
 
 | Strona (`page`) | Plik | Opis |
 |-----------------|------|------|
-| `landing` | `Landing.jsx` | Strona startowa (marketing, niezalogowany) |
-| `auth` | `AuthPage.jsx` | Logowanie + rejestracja (email/hasło + Google mock) |
+| `landing` | `Landing.jsx` | Strona startowa, logowanie Google (mock) |
 | `home` | `HomePage.jsx` | Dashboard klienta, popularne parkingi |
-| `reserve` | `ReservePage.jsx` | Wizard rezerwacji z mapą i wyborem pojazdu |
+| `reserve` | `ReservePage.jsx` | 3-krokowy wizard: parking → szczegóły → płatność |
 | `reservations` | `Reservations.jsx` | Lista aktywnych i zakończonych rezerwacji |
-| `map` | `MapPage.jsx` | Mapa Warszawy z markerami (do usunięcia — wg planu) |
+| `map` | `MapPage.jsx` | Mapa Warszawy z markerami (Leaflet) |
 | `join` | `JoinPage.jsx` | 4-krokowy wizard rejestracji właściciela |
 | `dashboard` | `Dashboard.jsx` | Panel właściciela: wykresy, mapa miejsc, szlaban |
 | `contact` | `ContactPage.jsx` | Formularz kontaktowy + FAQ (accordion) |
-| `user` | `UserPage.jsx` | Konto użytkownika: profil + zarządzanie pojazdami |
-| `addCar` | `AddCarPage.jsx` | Formularz dodawania pojazdu |
-| `settings` | `SettingsPage.jsx` | Ustawienia konta, powiadomienia, bezpieczeństwo |
-| `parkingDetails` | `ParkingDetailsPage.jsx` | Szczegóły parkingu z mapą i dostępnością |
 
 ### Komponenty współdzielone
 - `Nav.jsx` — pasek nawigacyjny, hamburger mobile, user pill z menu
@@ -587,20 +563,6 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 - [x] Panel właściciela (wykresy, mapa miejsc, sterowanie szlabanem)
 - [x] Wizard dołączania z parkingiem (4 kroki)
 - [x] Strona kontaktowa z FAQ
-- [x] **UserPage** (`UserPage.jsx`) — konto użytkownika (PR #8, Michał):
-  - lista pojazdów, ustawienie głównego, usuwanie
-  - blokada usunięcia pojazdu z aktywną rezerwacją
-- [x] **AddCarPage** (`AddCarPage.jsx`) — dodawanie pojazdu (PR #8, Michał):
-  - tablica + kod kraju (PL/DE/CZ/SK/UA), walidacja unikalności pary
-  - checkbox "ustaw jako główny"
-- [x] **SettingsPage** (`SettingsPage.jsx`) — ustawienia konta (PR #8, Michał):
-  - edycja imienia, emaila, telefonu
-  - preferencje powiadomień (email, SMS, przypomnienia)
-  - sekcja bezpieczeństwa (Google OAuth placeholder, zmiana hasła)
-  - domyślna metoda płatności
-- [x] **ParkingDetailsPage** (`ParkingDetailsPage.jsx`) — szczegóły parkingu z mapą
-- [x] Routing URL-based (`/home`, `/reservation`, `/user`, `/add-car`, itp.) — `history.pushState`
-- [x] `ENDPOINT-LIST.md` — lista endpointów API zmapowanych do komponentów (PR #8, Michał)
 
 ### Backend — struktura (PR #5, Stanisław Kopeć)
 > Wszystkie pliki to **szkielety** — klasy/interfejsy z właściwymi adnotacjami, ale bez logiki biznesowej.
@@ -625,38 +587,27 @@ PATCH  /admin/api/parkings/{id}/config  # konfiguracja podziału miejsc
 - [x] Wszystkie **dto** (puste klasy)
 - [x] Wszystkie **enums** (`ReservationStatus, ParkingSessionStatus, PaymentMethod` itd.)
 
-### Backend — MVP API (PR #9 + #10, Stanisław Kopeć)
-- [x] Encje rozbudowane o pełne pola wg schematu DB + relacje JPA (`@ManyToOne`, `@OneToMany`)
-- [x] **ParkingLotController** — `GET /api/parking-lots`, `/{id}`, `/{id}/availability`, `/{id}/price` — w pełni działające
-- [x] **VehicleController** — `GET/POST /api/vehicles`, `PATCH /{id}/primary`, `DELETE /{id}` — w pełni działające
-- [x] **ReservationController** — `POST/GET /api/reservations`, `/{id}`, `/{id}/confirm`, `DELETE /{id}` — w pełni działające
-- [x] **ReservationService** — pełna logika:
-  - generowanie unikalnego kodu 12-znakowego (`SecureRandom`, alfabet bez mylących znaków)
-  - sprawdzanie dostępności miejsc (`countOverlappingReservations`)
-  - optimistic locking (`@Version`)
-  - wygasanie rezerwacji PENDING po 15 minutach (`expiresAt`)
-  - walidacja danych wejściowych
-- [x] **ParkingLotService** — dostępność miejsc, wycena przez `PricingService`
-- [x] **DataInitializer** — seed danych przy starcie (gdy baza pusta):
-  - 1 klient testowy (`test@parkuj.my`, tablica `WW12345`)
-  - 5 parkingów warszawskich z cennikami (Złote Tarasy, Kopernik, Arkadia, Mokotów BP, Lotnisko)
-- [x] **GlobalExceptionHandler** — obsługa błędów HTTP
-- [x] **HealthController** — endpoint `/health`
-- [x] **Swagger/OpenAPI** — dostępny po uruchomieniu (`/swagger-ui.html`)
-- [x] **ErrorResponseDTO** — ujednolicony format błędów
+### Backend — logika rezerwacji (Codex, maj 2026)
+- [x] `POST /api/reservations` tworzy rezerwację `PENDING`
+- [x] `ReservationService.createReservation()` sprawdza klienta, pojazd, parking, aktywny cennik i dostępność miejsc online
+- [x] Rezerwacja dostaje 12-znakowy `reservationCode`, `priceEstimated`, `reservedAt`, `expiresAt` oraz `@Version`
+- [x] Uzupełniono encje i repozytoria potrzebne do przepływu: `Customer`, `Vehicle`, `ParkingLot`, `PricingPlan`, `Reservation`
+- [x] `DataInitializer` dodaje przy starcie testowego klienta, pojazd, 5 warszawskich parkingów i aktywne cenniki, jeśli baza jest pusta
 
-### Do zrobienia (backend)
-- [ ] CustomerController — logika CRUD
-- [ ] AuthController — Google OAuth2 + JWT
-- [ ] PaymentController — logika płatności
-- [ ] BarrierController — integracja z OCR
-- [ ] AdminController — panel operatora
-- [ ] VehicleService — blokada usunięcia przy aktywnej sesji/rezerwacji
-- [ ] EmailService — wysyłka kodu rezerwacji
-- [ ] ParkingSessionService — wjazd/wyjazd, overtime
+### Do zrobienia (backend — wypełnienie logiki)
+- [ ] Rozbudowa entity `Customer` o pełne pola wg schematu DB (googleSub, firstName, lastName, phone, status, itp.)
+- [ ] Rozbudowa pozostałych encji o pełne pola + relacje JPA (`@ManyToOne`, `@OneToMany`)
+- [ ] Metody w repositories (custom queries)
+- [ ] Logika w services
+- [ ] Endpointy w controllers
+- [ ] Google OAuth2 + JWT auth
+- [ ] PostgreSQL schema migration (Flyway/Liquibase)
+- [ ] OCR serwis (Python/FastAPI + OpenCV/EasyOCR)
+- [ ] Płatności (BLIK, karta, gotówka — provider)
+- [ ] Email z kodem rezerwacji (12 znaków)
 - [ ] Panel admina (/admin — osobna ścieżka, email+bcrypt)
-- [ ] OCR serwis (Python/FastAPI)
-- [ ] Płatności (provider)
+- [ ] Overtime detection + powiadomienia
+- [ ] Walk-in flow
 
 ---
 
@@ -985,34 +936,11 @@ ParkingLotService → PricingPlanRepository
 - Docelowo każdy na własnym branchu (`imie/feature`) + PR do main gdy feature gotowy
 - Na razie (faza budowania backendu) bez wymuszania branch-per-feature
 
-### Docker — konteneryzacja (ZAIMPLEMENTOWANE, branch `wojtek/docker`)
-Cały stack stawia jedna komenda — koniec ręcznego `mvnw spring-boot:run` + `npm run dev` osobno.
-
-```bash
-docker compose up --build        # postgres + backend + frontend
-docker compose up -d postgres    # sama baza (gdy backend/front lokalnie)
-docker compose down              # zatrzymanie (wolumen bazy zostaje)
-```
-
-| Serwis | Obraz / build | Port | Uwagi |
-|--------|---------------|------|-------|
-| `postgres` | postgres:16-alpine | 5432 | healthcheck `pg_isready`, wolumen `postgres_data` |
-| `backend` | `backend/Dockerfile` (maven→JRE 17) | 8080 | czeka na zdrowy postgres; DB host = `postgres` przez env |
-| `frontend` | `frontend/Dockerfile` (node 22, Vite dev) | 5173 | hot reload (bind-mount), proxy `/api` → `backend:8080` |
-
-**Kluczowe pliki:**
-- `docker-compose.yml` — 3 serwisy, sieć wewnętrzna compose
-- `backend/Dockerfile` — multi-stage: `maven:3.9-eclipse-temurin-17` buduje JAR (cache mount `.m2`), runtime `eclipse-temurin:17-jre`
-- `frontend/Dockerfile` — Vite dev server z `--host`, hot reload przez wolumen
-- `application.properties` — DB nadpisywalne przez `SPRING_DATASOURCE_*` (Docker ustawia host `postgres`, lokalnie domyślnie `localhost`)
-- `vite.config.js` — proxy `/api` → `VITE_API_PROXY_TARGET` (compose: `http://backend:8080`, lokalnie: `http://localhost:8080`) — brak CORS
-
-**Integracja proof-of-life:** `HomePage` pobiera realną listę parkingów z `GET /api/parking-lots` (`frontend/src/data/api.js`, mapowanie DTO→karta), z fallbackiem na mock gdy API nieosiągalne.
-
-**Zweryfikowane end-to-end (2026-06-02):** Postgres (Docker) + backend (JAR) + Vite dev — `/api/health` UP, `/api/parking-lots` zwraca 5 zasianych parkingów przez proxy Vite. Backend kompiluje się (`BUILD SUCCESS`, Spring Boot 4.0.6), frontend builduje się (708 modułów).
-> Uwaga: budowa *obrazów* Dockera wymaga normalnej sieci (pobieranie zależności Maven/npm). W środowisku z proxy przechwytującym TLS (np. niektóre CI/sandbox) build obrazu może paść na walidacji certyfikatu — na zwykłych maszynach zespołu działa standardowo.
-
-### Docelowo (TODO)
-- [ ] Serwis `python-ocr` (FastAPI) jako 4. kontener gdy powstanie
-- [ ] Profil produkcyjny frontendu (build + nginx) obok trybu dev
-- [ ] Sekrety/env przez `.env` zamiast wartości wprost w compose
+### Docker — kiedy wdrożyć
+- **Teraz: za wcześnie** — backend jeszcze nie działa, frontend to mockup
+- **Docker ma sens gdy:**
+  - Backend ma działające endpointy + bazę + auth
+  - Frontend przepisany i połączony z backendem
+  - Integracja wszystkich serwisów (Java + PostgreSQL + Python OCR)
+- **Docelowy `docker-compose.yml`** będzie miał 3 serwisy: java app, postgres, python-ocr
+- **Na razie:** backend lokalnie (`mvnw spring-boot:run`), PostgreSQL lokalnie lub Supabase/Railway, frontend lokalnie (`npm run dev`)

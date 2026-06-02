@@ -985,11 +985,34 @@ ParkingLotService → PricingPlanRepository
 - Docelowo każdy na własnym branchu (`imie/feature`) + PR do main gdy feature gotowy
 - Na razie (faza budowania backendu) bez wymuszania branch-per-feature
 
-### Docker — kiedy wdrożyć
-- **Teraz: za wcześnie** — backend jeszcze nie działa, frontend to mockup
-- **Docker ma sens gdy:**
-  - Backend ma działające endpointy + bazę + auth
-  - Frontend przepisany i połączony z backendem
-  - Integracja wszystkich serwisów (Java + PostgreSQL + Python OCR)
-- **Docelowy `docker-compose.yml`** będzie miał 3 serwisy: java app, postgres, python-ocr
-- **Na razie:** backend lokalnie (`mvnw spring-boot:run`), PostgreSQL lokalnie lub Supabase/Railway, frontend lokalnie (`npm run dev`)
+### Docker — konteneryzacja (ZAIMPLEMENTOWANE, branch `wojtek/docker`)
+Cały stack stawia jedna komenda — koniec ręcznego `mvnw spring-boot:run` + `npm run dev` osobno.
+
+```bash
+docker compose up --build        # postgres + backend + frontend
+docker compose up -d postgres    # sama baza (gdy backend/front lokalnie)
+docker compose down              # zatrzymanie (wolumen bazy zostaje)
+```
+
+| Serwis | Obraz / build | Port | Uwagi |
+|--------|---------------|------|-------|
+| `postgres` | postgres:16-alpine | 5432 | healthcheck `pg_isready`, wolumen `postgres_data` |
+| `backend` | `backend/Dockerfile` (maven→JRE 17) | 8080 | czeka na zdrowy postgres; DB host = `postgres` przez env |
+| `frontend` | `frontend/Dockerfile` (node 22, Vite dev) | 5173 | hot reload (bind-mount), proxy `/api` → `backend:8080` |
+
+**Kluczowe pliki:**
+- `docker-compose.yml` — 3 serwisy, sieć wewnętrzna compose
+- `backend/Dockerfile` — multi-stage: `maven:3.9-eclipse-temurin-17` buduje JAR (cache mount `.m2`), runtime `eclipse-temurin:17-jre`
+- `frontend/Dockerfile` — Vite dev server z `--host`, hot reload przez wolumen
+- `application.properties` — DB nadpisywalne przez `SPRING_DATASOURCE_*` (Docker ustawia host `postgres`, lokalnie domyślnie `localhost`)
+- `vite.config.js` — proxy `/api` → `VITE_API_PROXY_TARGET` (compose: `http://backend:8080`, lokalnie: `http://localhost:8080`) — brak CORS
+
+**Integracja proof-of-life:** `HomePage` pobiera realną listę parkingów z `GET /api/parking-lots` (`frontend/src/data/api.js`, mapowanie DTO→karta), z fallbackiem na mock gdy API nieosiągalne.
+
+**Zweryfikowane end-to-end (2026-06-02):** Postgres (Docker) + backend (JAR) + Vite dev — `/api/health` UP, `/api/parking-lots` zwraca 5 zasianych parkingów przez proxy Vite. Backend kompiluje się (`BUILD SUCCESS`, Spring Boot 4.0.6), frontend builduje się (708 modułów).
+> Uwaga: budowa *obrazów* Dockera wymaga normalnej sieci (pobieranie zależności Maven/npm). W środowisku z proxy przechwytującym TLS (np. niektóre CI/sandbox) build obrazu może paść na walidacji certyfikatu — na zwykłych maszynach zespołu działa standardowo.
+
+### Docelowo (TODO)
+- [ ] Serwis `python-ocr` (FastAPI) jako 4. kontener gdy powstanie
+- [ ] Profil produkcyjny frontendu (build + nginx) obok trybu dev
+- [ ] Sekrety/env przez `.env` zamiast wartości wprost w compose

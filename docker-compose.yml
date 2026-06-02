@@ -17,5 +17,34 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build: ./backend
+    container_name: parkuj-my-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: parkuj-my-frontend
+    restart: unless-stopped
+    environment:
+      # Vite proxuje /api do backendu po wewnetrznej sieci compose
+      VITE_API_PROXY_TARGET: http://backend:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app          # bind-mount kodu = hot reload
+      - /app/node_modules        # zachowaj node_modules z obrazu (nie nadpisuj bind-mountem)
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:

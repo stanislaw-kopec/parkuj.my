@@ -1,8 +1,21 @@
+import { useEffect, useState } from "react";
 import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
+import { fetchParkingLots } from "../data/api";
 
 export default function HomePage({ setPage }) {
+  // Start na danych mockowych, po zamontowaniu pobierz realne z backendu.
+  const [parkings, setParkings] = useState(MOCK_PARKINGS);
+
+  useEffect(() => {
+    let active = true;
+    fetchParkingLots().then((data) => {
+      if (active) setParkings(data);
+    });
+    return () => { active = false; };
+  }, []);
+
   return (
     <div className="fin">
       <div className="home-hero">
@@ -31,7 +44,7 @@ export default function HomePage({ setPage }) {
       </div>
 
       <div className="card-grid">
-        {MOCK_PARKINGS.slice(0, 4).map((p) => (
+        {parkings.slice(0, 4).map((p) => (
           <PCard key={p.id} p={p} onClick={() => setPage("reserve")} />
         ))}
       </div>

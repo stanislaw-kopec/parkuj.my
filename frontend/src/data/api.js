@@ -50,6 +50,17 @@ export function loginCustomer(payload) {
   return apiCall("/api/auth/login", { method: "POST", body: JSON.stringify(payload) });
 }
 
+export function fetchCurrentCustomer(customerId) {
+  return apiCall(`/api/customers/me?customerId=${customerId}`);
+}
+
+export function updateCurrentCustomer(customerId, payload) {
+  return apiCall(`/api/customers/me?customerId=${customerId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
 // Backend zwraca VehicleDTO z polami plateNumber/countryCode/primary;
 // UI pracuje na plate/country/primary — mapujemy do wspólnego kształtu.
 const mapVehicle = (v) => ({

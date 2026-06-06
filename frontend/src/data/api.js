@@ -85,6 +85,17 @@ export function updateIncidentStatus(incidentId, status) {
   });
 }
 
+export function fetchParkingLotStats(lotId) {
+  return apiCall(`/api/parking-lots/${lotId}/stats`);
+}
+
+export function updateParkingLotConfig(lotId, payload) {
+  return apiCall(`/api/parking-lots/${lotId}/config`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateCurrentCustomer(customerId, payload) {
   return apiCall(`/api/customers/me?customerId=${customerId}`, {
     method: "PUT",

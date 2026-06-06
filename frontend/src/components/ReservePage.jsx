@@ -75,6 +75,10 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
   const activePlate = vehicleMode === "saved" ? selectedVehicle?.plate || "" : plate;
   const hours = calcHours(timeFrom, timeTo);
   const total = Math.round(hours * (parking?.price || 0));
+  // Rezerwacja w przeszłości — porównujemy start z bieżącą chwilą.
+  const isPastReservation = date && timeFrom
+    ? new Date(`${date}T${timeFrom}:00`) < new Date()
+    : false;
 
   const handleBlikDigit = (i, val) => {
     if (!/^\d?$/.test(val)) return;
@@ -207,7 +211,13 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
       <div className="reservation-filters">
         <div className="fg">
           <label className="fl">Data</label>
-          <input className="fi" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            className="fi"
+            type="date"
+            value={date}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
         <div className="fg">
           <label className="fl">Od</label>
@@ -218,7 +228,13 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
           <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </div>
         <div className="filter-summary">
-          <span>{hours > 0 ? `${hours} h postoju` : "Wybierz poprawne godziny"}</span>
+          <span>
+            {isPastReservation
+              ? "Termin w przeszłości — wybierz przyszły"
+              : hours > 0
+                ? `${hours} h postoju`
+                : "Wybierz poprawne godziny"}
+          </span>
           <strong>{filteredParkings.length} parkingów dostępnych</strong>
         </div>
       </div>
@@ -292,7 +308,11 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
       </div>
 
       <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-        <button className="btn btn-a" disabled={!selectedId} onClick={() => setStep(2)}>
+        <button
+          className="btn btn-a"
+          disabled={!selectedId || isPastReservation || hours <= 0}
+          onClick={() => setStep(2)}
+        >
           Dalej <I.Arr />
         </button>
       </div>
@@ -380,11 +400,17 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
             </div>
           )}
 
+          {isPastReservation && (
+            <div className="auth-error" style={{ marginBottom: 16 }}>
+              <I.Alert /> Wybrana data i godzina są już w przeszłości. Wybierz przyszły termin.
+            </div>
+          )}
+
           <div className="wt-acts">
             <div />
             <button
               className="btn btn-a"
-              disabled={!activePlate || hours <= 0}
+              disabled={!activePlate || hours <= 0 || isPastReservation}
               onClick={() => setStep(3)}
             >
               Przejdź do płatności <I.Arr />

@@ -1,6 +1,7 @@
 package my.parkuj.application.controller;
 
 import my.parkuj.application.dto.CustomerDTO;
+import my.parkuj.application.dto.LoginRequestDTO;
 import my.parkuj.application.dto.RegisterRequestDTO;
 import my.parkuj.application.service.AuthService;
 import org.springframework.http.HttpStatus;
@@ -24,5 +25,12 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<CustomerDTO> register(@RequestBody RegisterRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
+
+    // Logowanie email + hasło. Zwraca CustomerDTO (frontend trzyma w localStorage)
+    // albo 401 jeśli email/hasło są nieprawidłowe.
+    @PostMapping("/login")
+    public CustomerDTO login(@RequestBody LoginRequestDTO request) {
+        return authService.login(request);
     }
 }

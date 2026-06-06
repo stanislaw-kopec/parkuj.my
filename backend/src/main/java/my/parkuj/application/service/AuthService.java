@@ -2,6 +2,7 @@ package my.parkuj.application.service;
 
 import java.util.Locale;
 import my.parkuj.application.dto.CustomerDTO;
+import my.parkuj.application.dto.LoginRequestDTO;
 import my.parkuj.application.dto.RegisterRequestDTO;
 import my.parkuj.application.model.Customer;
 import my.parkuj.application.model.Vehicle;
@@ -58,6 +59,28 @@ public class AuthService {
         }
 
         return CustomerDTO.fromEntity(saved);
+    }
+
+    // Weryfikacja email + hasło. Nie ujawniamy czy email istnieje — w obu przypadkach 401.
+    public CustomerDTO login(LoginRequestDTO request) {
+        if (request == null || isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj e-mail i hasło.");
+        }
+
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        Customer customer = customerRepository.findByEmail(email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło."));
+
+        // Klienci założeni przez Google OAuth nie mają hasła — nie pozwalamy się tak logować.
+        if (customer.getPasswordHash() == null || customer.getPasswordHash().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło.");
+        }
+
+        if (!passwordEncoder.matches(request.getPassword(), customer.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło.");
+        }
+
+        return CustomerDTO.fromEntity(customer);
     }
 
     private void validate(RegisterRequestDTO request) {

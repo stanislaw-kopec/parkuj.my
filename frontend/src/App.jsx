@@ -47,7 +47,9 @@ const getParkingIdFromPath = () => {
 export default function App() {
   const [page, setPageState]      = useState(getPageFromPath);
   const [parkingId, setParkingId] = useState(getParkingIdFromPath);
-  const [user, setUser]           = useState(null);
+  const [user, setUser]           = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user")) || null; } catch { return null; }
+  });
   const [role, setRole]           = useState("customer");
   const [showMenu, setShowMenu]   = useState(false);
   const [toast, setToast]         = useState(null);

@@ -2,7 +2,6 @@ import { MOCK_PARKINGS } from "./mockData";
 
 const PARKING_EMOJIS = ["🏢", "🏬", "🏛️", "🅿️", "✈️"];
 
-// Mapuje ParkingLotDTO z backendu na kształt karty używany przez PCard.
 const mapLotToCard = (lot, index) => ({
   id: lot.id ?? lot.parkingLotId,
   name: lot.name,
@@ -17,9 +16,6 @@ const mapLotToCard = (lot, index) => ({
       : [52.2297, 21.0122],
 });
 
-// Pobiera listę parkingów z backendu (GET /api/parking-lots).
-// W razie błędu lub braku danych zwraca dane mockowe — UI działa nawet
-// bez uruchomionego API, więc mockup pozostaje prezentowalny offline.
 export async function fetchParkingLots() {
   try {
     const response = await fetch("/api/parking-lots");
@@ -33,26 +29,59 @@ export async function fetchParkingLots() {
   }
 }
 
-// Rejestruje nowego klienta w backendzie (POST /api/auth/register).
-// W razie błędu walidacji/konfliktu rzuca Error z komunikatem z backendu,
-// żeby AuthPage mogła go pokazać użytkownikowi.
-export async function registerCustomer(payload) {
-  const response = await fetch("/api/auth/register", {
-    method: "POST",
+async function apiCall(path, options = {}) {
+  const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    ...options,
   });
-
   let data = null;
-  try {
-    data = await response.json();
-  } catch {
-    // brak ciała odpowiedzi — zostaw data = null
-  }
-
+  try { data = await response.json(); } catch { /* brak ciała */ }
   if (!response.ok) {
-    const message = data?.message || `Rejestracja nie powiodła się (HTTP ${response.status}).`;
-    throw new Error(message);
+    throw new Error(data?.message || `Błąd HTTP ${response.status}`);
   }
   return data;
+}
+
+export function registerCustomer(payload) {
+  return apiCall("/api/auth/register", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function loginCustomer(payload) {
+  return apiCall("/api/auth/login", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function fetchVehicles(customerId) {
+  return apiCall(`/api/vehicles?customerId=${customerId}`);
+}
+
+export function addVehicle(payload) {
+  return apiCall("/api/vehicles", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function deleteVehicle(vehicleId, customerId) {
+  return apiCall(`/api/vehicles/${vehicleId}?customerId=${customerId}`, { method: "DELETE" });
+}
+
+export function setPrimaryVehicle(vehicleId, customerId) {
+  return apiCall(`/api/vehicles/${vehicleId}/primary?customerId=${customerId}`, { method: "PATCH" });
+}
+
+export function fetchReservations(customerId) {
+  return apiCall(`/api/reservations?customerId=${customerId}`);
+}
+
+export function createReservation(payload) {
+  return apiCall("/api/reservations", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function cancelReservation(reservationId, customerId) {
+  return apiCall(`/api/reservations/${reservationId}?customerId=${customerId}`, { method: "DELETE" });
+}
+
+export function checkAvailability(lotId, from, to) {
+  return apiCall(`/api/parking-lots/${lotId}/availability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+}
+
+export function fetchParkingLotPrice(lotId, from, to) {
+  return apiCall(`/api/parking-lots/${lotId}/price?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 }

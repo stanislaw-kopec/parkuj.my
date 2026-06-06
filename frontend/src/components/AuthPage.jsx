@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as I from "../icons";
-import { registerCustomer } from "../data/api";
+import { registerCustomer, loginCustomer } from "../data/api";
 
 const initialLogin = {
   email: "jan@gmail.com",
@@ -36,21 +36,32 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
     setRegister({ ...register, [key]: value });
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!login.email || !login.password) {
       setError("Podaj e-mail i hasło.");
       return;
     }
-
-    const name = login.email.split("@")[0].replace(/[._-]/g, " ");
-    setRole("customer");
-    setUser({
-      name: name.replace(/\b\w/g, (c) => c.toUpperCase()),
-      email: login.email,
-    });
-    setPage("home");
-    setToast("Zalogowano pomyślnie.");
+    setSubmitting(true);
+    setError("");
+    try {
+      const customer = await loginCustomer({ email: login.email, password: login.password });
+      const userData = {
+        customerId: customer.customerId,
+        name: `${customer.firstName} ${customer.lastName}`,
+        email: customer.email,
+        phone: customer.phone,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+      setRole("customer");
+      setUser(userData);
+      setPage("home");
+      setToast("Zalogowano pomyślnie.");
+    } catch (err) {
+      setError(err.message || "Logowanie nie powiodło się.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -148,8 +159,8 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
               <label className="fl">Hasło</label>
               <input className="fi" type="password" value={login.password} onChange={updateLogin("password")} placeholder="••••••••" />
             </div>
-            <button className="btn btn-a btn-block" type="submit">
-              Zaloguj się <I.Arr />
+            <button className="btn btn-a btn-block" type="submit" disabled={submitting}>
+              {submitting ? "Logowanie…" : <>Zaloguj się <I.Arr /></>}
             </button>
             <button className="btn btn-o btn-block" type="button" style={{ marginTop: 10 }} onClick={() => setMode("register")}>
               Utwórz nowe konto

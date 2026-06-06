@@ -24,7 +24,11 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
   });
 
   const handleStart = () => {
-    if (!user) setUser({ name: "Adam Nowak", email: "adam.owner@gmail.com" });
+    // Wymagamy zalogowanego konta — wcześniej był tu mock 'Adam Nowak'.
+    if (!user) {
+      setPage("auth");
+      return;
+    }
     setWizardStep(1);
   };
 
@@ -104,12 +108,12 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             className="btn btn-o btn-sm"
             style={{ marginTop: 8 }}
             onClick={() => {
-              setUser({ name: "Adam Nowak", email: "adam.owner@gmail.com" });
+              if (!user) { setPage("auth"); return; }
               setRole("owner");
               setPage("dashboard");
             }}
           >
-            Zaloguj jako właściciel
+            {user ? "Przejdź do panelu właściciela" : "Najpierw się zaloguj"}
           </button>
         </div>
       </div>

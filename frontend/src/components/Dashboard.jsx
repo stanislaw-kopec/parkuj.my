@@ -236,7 +236,7 @@ export default function Dashboard({ setToast }) {
         <div>
           <div className="d-sec">
             <h3>Podział miejsc</h3>
-            <p className="desc">Zmiana zapisuje się natychmiast w bazie (PATCH /api/parking-lots/{lotId}/config).</p>
+            <p className="desc">Określ ile miejsc rezerwujesz online, a ile zostawiasz dla wjazdów bez rezerwacji.</p>
             <div className="split-summary compact">
               <div>
                 <span>{split.total}</span>

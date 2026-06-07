@@ -235,7 +235,7 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
           <label className="fl">Do</label>
           <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </div>
-        <div className="filter-summary">
+        <div className={`filter-summary${filteredParkings.length > 0 && !isPastReservation && hours > 0 ? " is-available" : ""}`}>
           <span>
             {isPastReservation
               ? "Termin w przeszłości — wybierz przyszły"

@@ -1,25 +1,72 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as I from "../icons";
+import { fetchCurrentCustomer, updateCurrentCustomer } from "../data/api";
 
 export default function SettingsPage({ user, setUser, setToast }) {
   const [form, setForm] = useState({
-    name: user?.name || "",
+    firstName: "",
+    lastName: "",
     email: user?.email || "",
     phone: user?.phone || "",
     emailNotifications: true,
     smsNotifications: false,
     reservationReminders: true,
   });
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Załaduj świeże dane z bazy przy wejściu na stronę.
+  useEffect(() => {
+    if (!user?.customerId) return;
+    let active = true;
+    fetchCurrentCustomer(user.customerId).then((c) => {
+      if (!active) return;
+      setForm((prev) => ({
+        ...prev,
+        firstName: c.firstName || "",
+        lastName: c.lastName || "",
+        email: c.email || "",
+        phone: c.phone || "",
+      }));
+    }).catch(() => { /* zostaw obecny stan */ });
+    return () => { active = false; };
+  }, [user?.customerId]);
 
   const update = (key) => (event) => {
+    setError("");
     const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
     setForm({ ...form, [key]: value });
   };
 
-  const saveSettings = (event) => {
+  const saveSettings = async (event) => {
     event.preventDefault();
-    setUser({ ...user, name: form.name, email: form.email, phone: form.phone });
-    setToast("Ustawienia zapisane.");
+    if (!user?.customerId) {
+      setError("Brak danych zalogowanego użytkownika.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      const updated = await updateCurrentCustomer(user.customerId, {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+      });
+      const refreshed = {
+        ...user,
+        name: `${updated.firstName} ${updated.lastName}`.trim(),
+        email: updated.email,
+        phone: updated.phone,
+      };
+      localStorage.setItem("user", JSON.stringify(refreshed));
+      setUser(refreshed);
+      setToast("Ustawienia zapisane.");
+    } catch (err) {
+      setError(err.message || "Nie udało się zapisać ustawień.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -36,9 +83,21 @@ export default function SettingsPage({ user, setUser, setToast }) {
           <h2>Dane konta</h2>
           <p className="desc">Te dane są używane do potwierdzeń rezerwacji i kontaktu z obsługą.</p>
 
-          <div className="fg">
-            <label className="fl">Imię i nazwisko</label>
-            <input className="fi" value={form.name} onChange={update("name")} />
+          {error && (
+            <div className="auth-error" style={{ marginBottom: 16 }}>
+              <I.Alert /> {error}
+            </div>
+          )}
+
+          <div className="fr">
+            <div className="fg">
+              <label className="fl">Imię</label>
+              <input className="fi" value={form.firstName} onChange={update("firstName")} />
+            </div>
+            <div className="fg">
+              <label className="fl">Nazwisko</label>
+              <input className="fi" value={form.lastName} onChange={update("lastName")} />
+            </div>
           </div>
           <div className="fg">
             <label className="fl">Adres e-mail</label>
@@ -99,8 +158,8 @@ export default function SettingsPage({ user, setUser, setToast }) {
         </section>
 
         <div className="settings-actions">
-          <button className="btn btn-a" type="submit">
-            Zapisz ustawienia <I.Check />
+          <button className="btn btn-a" type="submit" disabled={submitting}>
+            {submitting ? "Zapisywanie…" : <>Zapisz ustawienia <I.Check /></>}
           </button>
         </div>
       </form>

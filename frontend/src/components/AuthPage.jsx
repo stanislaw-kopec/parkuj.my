@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as I from "../icons";
+import { registerCustomer, loginCustomer, forgotPassword } from "../data/api";
 
 const initialLogin = {
   email: "jan@gmail.com",
@@ -15,6 +16,7 @@ const initialRegister = {
   password: "",
   confirmPassword: "",
   terms: false,
+  hostParking: false,
 };
 
 export default function AuthPage({ setUser, setRole, setPage, setToast }) {
@@ -22,6 +24,9 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
   const [login, setLogin] = useState(initialLogin);
   const [register, setRegister] = useState(initialRegister);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
 
   const updateLogin = (key) => (e) => {
     setError("");
@@ -30,25 +35,51 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
 
   const updateRegister = (key) => (e) => {
     setError("");
-    const value = key === "terms" ? e.target.checked : e.target.value;
+    const value = key === "terms" || key === "hostParking" ? e.target.checked : e.target.value;
     setRegister({ ...register, [key]: value });
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!login.email || !login.password) {
       setError("Podaj e-mail i hasło.");
       return;
     }
+    setSubmitting(true);
+    setError("");
+    try {
+      const customer = await loginCustomer({ email: login.email, password: login.password });
+      const userData = {
+        customerId: customer.customerId,
+        name: `${customer.firstName} ${customer.lastName}`,
+        email: customer.email,
+        phone: customer.phone,
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+      setRole("customer");
+      setUser(userData);
+      setPage("home");
+      setToast("Zalogowano pomyślnie.");
+    } catch (err) {
+      setError(err.message || "Logowanie nie powiodło się.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    const name = login.email.split("@")[0].replace(/[._-]/g, " ");
-    setRole("customer");
-    setUser({
-      name: name.replace(/\b\w/g, (c) => c.toUpperCase()),
-      email: login.email,
-    });
-    setPage("home");
-    setToast("Zalogowano pomyślnie.");
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) { setError("Podaj adres e-mail."); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      await forgotPassword(forgotEmail);
+      setForgotSent(true);
+    } catch {
+      setForgotSent(true); // zawsze pokaż sukces (nie ujawniamy czy email istnieje)
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -58,7 +89,7 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
     setToast("Zalogowano przez Google.");
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     if (!register.firstName || !register.lastName || !register.email || !register.password) {
       setError("Uzupełnij wymagane pola.");
@@ -77,15 +108,42 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
       return;
     }
 
-    setRole("customer");
-    setUser({
-      name: `${register.firstName} ${register.lastName}`,
-      email: register.email,
-      phone: register.phone,
-      plate: register.plate.toUpperCase(),
-    });
-    setPage("home");
-    setToast("Konto utworzone. Możesz rezerwować miejsce.");
+    setSubmitting(true);
+    setError("");
+    try {
+      // Zapis do bazy przez backend (POST /api/auth/register).
+      const created = await registerCustomer({
+        firstName: register.firstName,
+        lastName: register.lastName,
+        email: register.email,
+        phone: register.phone,
+        plate: register.plate,
+        password: register.password,
+      });
+
+      const userData = {
+        customerId: created?.customerId,
+        name: `${created?.firstName ?? register.firstName} ${created?.lastName ?? register.lastName}`,
+        email: created?.email ?? register.email,
+        phone: created?.phone ?? register.phone,
+        plate: register.plate.toUpperCase(),
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+      setRole("customer");
+      setUser(userData);
+      if (register.hostParking) {
+        // Użytkownik zaznaczył "chcę zarejestrować parking" — od razu wizard /join.
+        setPage("join");
+        setToast("Konto utworzone. Zarejestruj teraz swój parking.");
+      } else {
+        setPage("home");
+        setToast("Konto utworzone i zapisane. Możesz rezerwować miejsce.");
+      }
+    } catch (err) {
+      setError(err.message || "Rejestracja nie powiodła się. Spróbuj ponownie.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -103,10 +161,10 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
 
       <div className="auth-card">
         <div className="auth-tabs">
-          <button className={mode === "login" ? "on" : ""} onClick={() => { setMode("login"); setError(""); }}>
+          <button className={mode === "login" ? "on" : ""} onClick={() => { setMode("login"); setError(""); setForgotSent(false); }}>
             Logowanie
           </button>
-          <button className={mode === "register" ? "on" : ""} onClick={() => { setMode("register"); setError(""); }}>
+          <button className={mode === "register" ? "on" : ""} onClick={() => { setMode("register"); setError(""); setForgotSent(false); }}>
             Rejestracja
           </button>
         </div>
@@ -127,12 +185,39 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
               <label className="fl">Hasło</label>
               <input className="fi" type="password" value={login.password} onChange={updateLogin("password")} placeholder="••••••••" />
             </div>
-            <button className="btn btn-a btn-block" type="submit">
-              Zaloguj się <I.Arr />
+            <button className="btn btn-a btn-block" type="submit" disabled={submitting}>
+              {submitting ? "Logowanie…" : <>Zaloguj się <I.Arr /></>}
             </button>
             <button className="btn btn-o btn-block" type="button" style={{ marginTop: 10 }} onClick={() => setMode("register")}>
               Utwórz nowe konto
             </button>
+
+            <div className="auth-divider" style={{ margin: "16px 0 8px" }}><span>resetowanie hasła</span></div>
+            {forgotSent ? (
+              <div style={{ fontSize: 13, color: "var(--success)", textAlign: "center", padding: "8px 0" }}>
+                Jeśli konto istnieje, link resetujący zostanie wysłany na podany adres.
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  className="fi"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="Twój e-mail"
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="btn btn-o btn-sm"
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleForgotPassword}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  Wyślij link
+                </button>
+              </div>
+            )}
           </form>
         ) : (
           <form onSubmit={handleRegister}>
@@ -180,8 +265,12 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
               <input type="checkbox" checked={register.terms} onChange={updateRegister("terms")} />
               <span>Akceptuję regulamin i zgodę na obsługę rezerwacji parkingowych.</span>
             </label>
-            <button className="btn btn-a btn-block" type="submit">
-              Zarejestruj konto <I.Check />
+            <label className="auth-check">
+              <input type="checkbox" checked={register.hostParking} onChange={updateRegister("hostParking")} />
+              <span>Mam parking i chcę go zarejestrować w sieci parkuj.my (przejdziesz do kreatora po założeniu konta).</span>
+            </label>
+            <button className="btn btn-a btn-block" type="submit" disabled={submitting}>
+              {submitting ? "Tworzenie konta…" : <>Zarejestruj konto <I.Check /></>}
             </button>
           </form>
         )}

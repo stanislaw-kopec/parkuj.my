@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ParkingLotRepository extends JpaRepository<ParkingLot, Integer> {
 
     List<ParkingLot> findByStatusIgnoreCaseOrderByNameAsc(String status);
+
+    List<ParkingLot> findByOwnerCustomerIdOrderByCreatedAtDesc(Integer customerId);
 }

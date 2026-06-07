@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import * as I from "../icons";
+import { fetchMyParkingLots, fetchParkingLotStats, updateParkingLotConfig, updateParkingLotPrice } from "../data/api";
 
 const ENTRIES = [
   { plate: "WA 12345", time: "14:32", type: "in",  status: "Rezerwacja OK" },
@@ -13,84 +14,221 @@ const ENTRIES = [
   { plate: "WA 33210", time: "13:15", type: "out", status: "Wyjazd — 2h 05min" },
 ];
 
-const REVENUE_DATA = [
-  { day: "Pon", value: 840 },
-  { day: "Wt",  value: 1120 },
-  { day: "Śr",  value: 980 },
-  { day: "Czw", value: 1340 },
-  { day: "Pt",  value: 1580 },
-  { day: "Sob", value: 2100 },
-  { day: "Nd",  value: 1240 },
-];
+const DAY_LABELS = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
 
-const QUICK_ACTIONS = [
-  { label: "Zmień cenę",         icon: <I.TrendUp /> },
-  { label: "Godziny otwarcia",   icon: <I.Clock /> },
-  { label: "Zmień podział miejsc", icon: <I.Gear /> },
-  { label: "Raport PDF",         icon: <I.Download /> },
-];
+export default function Dashboard({ user, setPage, setToast }) {
+  const [lots, setLots]                   = useState([]);
+  const [lotId, setLotId]                 = useState(null);
+  const [stats, setStats]                 = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [savingSplit, setSavingSplit]     = useState(false);
+  const [splitError, setSplitError]       = useState("");
+  const [barrierOpen, setBarrierOpen]     = useState(false);
+  const [split, setSplit]                 = useState({ total: 0, reservable: 0 });
 
-export default function Dashboard({ setToast }) {
-  const [barrierOpen, setBarrierOpen] = useState(false);
-  const [spotSplit, setSpotSplit] = useState({ total: 50, reservable: 35 });
-  const walkIn = Math.max(0, spotSplit.total - spotSplit.reservable);
+  // "Zmień cenę" modal
+  const [priceModal, setPriceModal]       = useState(false);
+  const [newPrice, setNewPrice]           = useState("");
+  const [savingPrice, setSavingPrice]     = useState(false);
+  const [priceError, setPriceError]       = useState("");
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.customerId) { setLoading(false); return; }
+    (async () => {
+      try {
+        const data = await fetchMyParkingLots(user.customerId);
+        if (!active || !data?.length) { setLoading(false); return; }
+        setLots(data);
+        const firstId = data[0].id ?? data[0].parkingLotId;
+        setLotId(firstId);
+        const s = await fetchParkingLotStats(firstId);
+        if (!active) return;
+        setStats(s);
+        setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
+      } catch {
+        if (active) setStats(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [user?.customerId]);
+
+  const switchLot = async (id) => {
+    setLotId(id);
+    setStats(null);
+    try {
+      const s = await fetchParkingLotStats(id);
+      setStats(s);
+      setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
+    } catch { /* zostaw null */ }
+  };
+
+  const refreshStats = async () => {
+    if (!lotId) return;
+    try {
+      const s = await fetchParkingLotStats(lotId);
+      setStats(s);
+      setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
+    } catch { /* zostaw */ }
+  };
+
+  const handleSaveSplit = async () => {
+    if (!lotId) return;
+    if (split.reservable > split.total) {
+      setSplitError("Liczba miejsc rezerwowanych nie może przekraczać liczby miejsc ogółem.");
+      return;
+    }
+    setSplitError("");
+    setSavingSplit(true);
+    try {
+      await updateParkingLotConfig(lotId, {
+        placesCount: split.total,
+        reservablePlacesCount: split.reservable,
+      });
+      await refreshStats();
+      setToast("Podział miejsc zaktualizowany w bazie.");
+    } catch (err) {
+      setSplitError(err.message || "Nie udało się zapisać podziału.");
+    } finally {
+      setSavingSplit(false);
+    }
+  };
+
+  const handleOpenPriceModal = () => {
+    setNewPrice(stats?.pricePerHour != null ? String(stats.pricePerHour) : "");
+    setPriceError("");
+    setPriceModal(true);
+  };
+
+  const handleSavePrice = async () => {
+    const val = parseFloat(newPrice);
+    if (isNaN(val) || val < 0) {
+      setPriceError("Podaj prawidłową cenę (≥ 0).");
+      return;
+    }
+    setSavingPrice(true);
+    setPriceError("");
+    try {
+      await updateParkingLotPrice(lotId, val.toFixed(2));
+      await refreshStats();
+      setPriceModal(false);
+      setToast(`Cena zaktualizowana: ${val.toFixed(2)} zł/h`);
+    } catch (err) {
+      setPriceError(err.message || "Nie udało się zmienić ceny.");
+    } finally {
+      setSavingPrice(false);
+    }
+  };
 
   const toggleBarrier = () => {
     setBarrierOpen((prev) => {
-      setToast(prev ? "Szlaban zamknięty" : "Szlaban otwarty");
+      setToast(prev ? "Szlaban zamknięty (mock)" : "Szlaban otwarty (mock)");
       return !prev;
     });
   };
 
   const setReservable = (value) => {
-    const reservable = Math.min(Math.max(0, Number(value) || 0), spotSplit.total);
-    setSpotSplit({ ...spotSplit, reservable });
+    const reservable = Math.min(Math.max(0, Number(value) || 0), split.total);
+    setSplit({ ...split, reservable });
   };
+
+  const walkIn = Math.max(0, split.total - split.reservable);
+  const revenueChartData = useMemo(() => {
+    if (!stats?.revenueLast7Days) return [];
+    return stats.revenueLast7Days.map((p) => {
+      const d = new Date(p.day);
+      return { day: DAY_LABELS[d.getDay()], value: Number(p.value) || 0 };
+    });
+  }, [stats]);
+  const totalWeekRevenue = revenueChartData.reduce((sum, p) => sum + p.value, 0);
+  const occupancy = stats && stats.placesCount > 0
+    ? Math.round((stats.activeReservationsCount / stats.placesCount) * 100)
+    : 0;
+
+  if (loading) return (
+    <div className="fin">
+      <div className="sh"><div><h2 className="st">Panel zarządzania</h2><p className="ss">Wczytywanie danych…</p></div></div>
+    </div>
+  );
+
+  if (!stats) return (
+    <div className="fin">
+      <div className="sh">
+        <div>
+          <h2 className="st">Panel zarządzania</h2>
+          <p className="ss">Nie masz jeszcze zarejestrowanego parkingu.</p>
+        </div>
+      </div>
+      <div className="empty" style={{ padding: "60px 24px" }}>
+        <div className="empty-ic"><I.Dash /></div>
+        <h3>Dodaj swój pierwszy parking</h3>
+        <p>Przejdź przez krótki kreator, by zarejestrować obiekt — od tego momentu zobaczysz tu obłożenie, przychody i podział miejsc.</p>
+        <button className="btn btn-a" style={{ marginTop: 16 }} onClick={() => setPage("join")}>
+          Dołącz z parkingiem <I.Arr />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fin">
       <div className="sh">
         <div>
           <h2 className="st">Panel zarządzania</h2>
-          <p className="ss">Parking Centrum · ul. Przykładowa 10</p>
+          {lots.length > 1 ? (
+            <select
+              className="fs"
+              style={{ marginTop: 4, fontSize: 13 }}
+              value={lotId || ""}
+              onChange={(e) => switchLot(Number(e.target.value))}
+            >
+              {lots.map((l) => (
+                <option key={l.id ?? l.parkingLotId} value={l.id ?? l.parkingLotId}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="ss">{stats.parkingLotName} · z bazy danych</p>
+          )}
         </div>
-        <button className="btn btn-o btn-sm">
-          <I.Gear /> Ustawienia
+        <button className="btn btn-o btn-sm" onClick={refreshStats}>
+          Odśwież
         </button>
       </div>
 
-      {/* Stats */}
       <div className="d-grid">
         <div className="d-stat">
-          <div className="d-stat-l">Obłożenie</div>
-          <div className="d-stat-v">76%</div>
-          <div className="d-stat-c up">+12% vs wczoraj</div>
+          <div className="d-stat-l">Obłożenie (aktywne)</div>
+          <div className="d-stat-v">{occupancy}%</div>
+          <div className="d-stat-c">{stats.activeReservationsCount} z {stats.placesCount} miejsc</div>
         </div>
         <div className="d-stat">
-          <div className="d-stat-l">Przychód dziś</div>
-          <div className="d-stat-v">1 240 zł</div>
-          <div className="d-stat-c up">+8%</div>
+          <div className="d-stat-l">Przychód — bieżący miesiąc</div>
+          <div className="d-stat-v">{Number(stats.revenueThisMonth || 0).toLocaleString("pl")} zł</div>
+          <div className="d-stat-c">{stats.reservationsThisMonth} rezerwacji</div>
         </div>
         <div className="d-stat">
-          <div className="d-stat-l">Aktywne rezerwacje</div>
-          <div className="d-stat-v">38</div>
-          <div className="d-stat-c">z 50 miejsc</div>
+          <div className="d-stat-l">Cena godzinowa</div>
+          <div className="d-stat-v">{stats.pricePerHour != null ? `${Number(stats.pricePerHour).toFixed(2)} zł` : "—"}</div>
+          <div className="d-stat-c">aktywny cennik</div>
         </div>
       </div>
 
       <div className="dash-layout">
         <div>
-          {/* Revenue chart */}
           <div className="d-sec">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <h3 style={{ margin: 0 }}>Przychód — ostatnie 7 dni</h3>
               <span style={{ fontSize: 11, color: "var(--text3)" }}>
-                Σ {REVENUE_DATA.reduce((s, d) => s + d.value, 0).toLocaleString("pl")} zł
+                Σ {totalWeekRevenue.toLocaleString("pl")} zł
               </span>
             </div>
             <div className="chart-c">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={REVENUE_DATA} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                <AreaChart data={revenueChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#F17300" stopOpacity={0.35} />
@@ -112,17 +250,14 @@ export default function Dashboard({ setToast }) {
             </div>
           </div>
 
-          {/* Entry log */}
           <div className="d-sec">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ margin: 0 }}>Ostatnie wjazdy / wyjazdy</h3>
-              <span style={{ fontSize: 11, color: "var(--text3)" }}>Na żywo</span>
+              <span style={{ fontSize: 11, color: "var(--text3)" }}>Demo — wymaga OCR</span>
             </div>
             <table className="dtbl">
               <thead>
-                <tr>
-                  <th>Tablica</th><th>Czas</th><th>Typ</th><th>Status</th>
-                </tr>
+                <tr><th>Tablica</th><th>Czas</th><th>Typ</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {ENTRIES.map((e, i) => (
@@ -145,7 +280,6 @@ export default function Dashboard({ setToast }) {
             </table>
           </div>
 
-          {/* Manual controls */}
           <div className="d-sec">
             <h3>Sterowanie szlabanem</h3>
             <div className="bar-ctrl">
@@ -156,31 +290,23 @@ export default function Dashboard({ setToast }) {
                     {barrierOpen ? "OTWARTY" : "ZAMKNIĘTY"}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)" }}>Tryb ręczny — normalnie sterowany przez ANPR</div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-o btn-sm" onClick={() => setToast("Rezerwacja dodana")}>
-                  <I.Plus /> Dodaj rezerwację
-                </button>
-                <button className="btn btn-o btn-sm">
-                  <I.Alert /> Zgłoś problem
-                </button>
+                <div style={{ fontSize: 11, color: "var(--text3)" }}>Demo — wymaga sprzętu</div>
               </div>
             </div>
           </div>
         </div>
 
         <div>
-          {/* Spot split */}
           <div className="d-sec">
             <h3>Podział miejsc</h3>
+            <p className="desc">Określ ile miejsc rezerwujesz online, a ile zostawiasz dla wjazdów bez rezerwacji.</p>
             <div className="split-summary compact">
               <div>
-                <span>{spotSplit.total}</span>
+                <span>{split.total}</span>
                 <small>razem</small>
               </div>
               <div>
-                <span>{spotSplit.reservable}</span>
+                <span>{split.reservable}</span>
                 <small>aplikacja</small>
               </div>
               <div>
@@ -194,47 +320,93 @@ export default function Dashboard({ setToast }) {
                 className="split-range"
                 type="range"
                 min="0"
-                max={spotSplit.total}
-                value={spotSplit.reservable}
+                max={split.total}
+                value={split.reservable}
                 onChange={(e) => setReservable(e.target.value)}
               />
             </div>
             <div className="fr">
+              <div className="fg">
+                <label className="fl">Razem</label>
+                <input
+                  className="fi"
+                  type="number"
+                  min="0"
+                  value={split.total}
+                  onChange={(e) => setSplit({ total: Math.max(0, Number(e.target.value) || 0), reservable: split.reservable })}
+                />
+              </div>
               <div className="fg">
                 <label className="fl">Online</label>
                 <input
                   className="fi"
                   type="number"
                   min="0"
-                  max={spotSplit.total}
-                  value={spotSplit.reservable}
+                  max={split.total}
+                  value={split.reservable}
                   onChange={(e) => setReservable(e.target.value)}
                 />
               </div>
-              <div className="fg">
-                <label className="fl">Walk-in</label>
-                <input className="fi" type="number" value={walkIn} readOnly />
-              </div>
             </div>
-            <button className="btn btn-a btn-block" onClick={() => setToast("Podział miejsc zaktualizowany")}>
-              Zapisz podział
+            {splitError && (
+              <div className="auth-error" style={{ margin: "12px 0" }}>
+                <I.Alert /> {splitError}
+              </div>
+            )}
+            <button className="btn btn-a btn-block" onClick={handleSaveSplit} disabled={savingSplit}>
+              {savingSplit ? "Zapisywanie…" : "Zapisz podział"}
             </button>
           </div>
 
-          {/* Quick actions */}
           <div className="d-sec">
             <h3>Szybkie akcje</h3>
-            {QUICK_ACTIONS.map((a, i) => (
-              <button
-                key={i}
-                className="qa-item"
-                onClick={() => setToast(`${a.label}...`)}
-              >
-                <div className="qa-item-ic">{a.icon}</div>
-                <span style={{ flex: 1 }}>{a.label}</span>
-                <I.Chev />
-              </button>
-            ))}
+
+            <button className="qa-item" onClick={handleOpenPriceModal}>
+              <div className="qa-item-ic"><I.TrendUp /></div>
+              <span style={{ flex: 1 }}>Zmień cenę</span>
+              <I.Chev />
+            </button>
+
+            {priceModal && (
+              <div className="qa-inline">
+                <div className="fg" style={{ marginTop: 8 }}>
+                  <label className="fl">Nowa cena / godz. (PLN)</label>
+                  <input
+                    className="fi"
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    value={newPrice}
+                    onChange={(e) => { setNewPrice(e.target.value); setPriceError(""); }}
+                    autoFocus
+                  />
+                </div>
+                {priceError && (
+                  <div className="auth-error" style={{ margin: "8px 0" }}>
+                    <I.Alert /> {priceError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn btn-a btn-sm" onClick={handleSavePrice} disabled={savingPrice}>
+                    {savingPrice ? "Zapisywanie…" : "Zapisz"}
+                  </button>
+                  <button className="btn btn-o btn-sm" onClick={() => setPriceModal(false)}>
+                    Anuluj
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button className="qa-item" onClick={() => setToast("Godziny otwarcia — brak w obecnej wersji DB")}>
+              <div className="qa-item-ic"><I.Clock /></div>
+              <span style={{ flex: 1 }}>Godziny otwarcia</span>
+              <I.Chev />
+            </button>
+            <button className="qa-item" onClick={() => setToast("Eksport PDF — wkrótce")}>
+              <div className="qa-item-ic"><I.Download /></div>
+              <span style={{ flex: 1 }}>Raport PDF</span>
+              <I.Chev />
+            </button>
           </div>
         </div>
       </div>

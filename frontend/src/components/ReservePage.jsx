@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -6,6 +6,7 @@ import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
 import { calcHours, getParkingAvailability } from "../data/parkingAvailability";
+import { fetchParkingLots, createReservation, confirmReservation } from "../data/api";
 
 const STEPS = [
   { n: 1, label: "Parking" },
@@ -37,34 +38,47 @@ const fmtDate = (iso) => {
   return `${d}.${m}.${y}`;
 };
 
-export default function ReservePage({ vehicles = [], setPage, setToast }) {
+export default function ReservePage({ user, vehicles = [], setPage, setToast }) {
   const [step, setStep]             = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch]         = useState("");
   const [vehicleMode, setVehicleMode] = useState("saved");
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || null);
   const [plate, setPlate]           = useState("");
-  const [date, setDate]             = useState("2026-04-20");
+  const [date, setDate]             = useState(() => new Date().toISOString().slice(0, 10));
   const [timeFrom, setTimeFrom]     = useState("09:00");
   const [timeTo, setTimeTo]         = useState("17:00");
   const [payMethod, setPayMethod]   = useState("blik");
   const [blik, setBlik]             = useState(["", "", "", "", "", ""]);
+  const [parkings, setParkings]     = useState(MOCK_PARKINGS);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetchParkingLots().then((data) => { if (active) setParkings(data); });
+    return () => { active = false; };
+  }, []);
 
   const filteredParkings = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return MOCK_PARKINGS.filter((p) => {
+    return parkings.filter((p) => {
       const matchesQuery = !query || `${p.name} ${p.address}`.toLowerCase().includes(query);
       const hasAvailability = getParkingAvailability(p, date, timeFrom, timeTo) > 0;
       return matchesQuery && hasAvailability;
     });
-  }, [search, date, timeFrom, timeTo]);
+  }, [parkings, search, date, timeFrom, timeTo]);
 
-  const parking = MOCK_PARKINGS.find((p) => p.id === selectedId);
+  const parking = parkings.find((p) => p.id === selectedId);
   const savedVehicles = vehicles.length ? vehicles : [];
   const selectedVehicle = savedVehicles.find((v) => v.id === selectedVehicleId) || savedVehicles[0];
   const activePlate = vehicleMode === "saved" ? selectedVehicle?.plate || "" : plate;
   const hours = calcHours(timeFrom, timeTo);
   const total = Math.round(hours * (parking?.price || 0));
+  // Rezerwacja w przeszłości — porównujemy start z bieżącą chwilą.
+  const isPastReservation = date && timeFrom
+    ? new Date(`${date}T${timeFrom}:00`) < new Date()
+    : false;
 
   const handleBlikDigit = (i, val) => {
     if (!/^\d?$/.test(val)) return;
@@ -74,7 +88,7 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
     if (val && i < 5) document.getElementById(`blik-${i + 1}`)?.focus();
   };
 
-  const handleConfirm = () => {
+  const resetWizard = () => {
     setStep(1);
     setSelectedId(null);
     setSearch("");
@@ -82,7 +96,64 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
     setSelectedVehicleId(savedVehicles[0]?.id || null);
     setPlate("");
     setBlik(["", "", "", "", "", ""]);
-    setToast("✓ Rezerwacja potwierdzona! Szlaban otworzy się automatycznie.");
+    setSubmitError("");
+  };
+
+  const handleConfirm = async () => {
+    if (!user?.customerId) {
+      setSubmitError("Musisz być zalogowany, żeby zarezerwować.");
+      return;
+    }
+    if (!parking) {
+      setSubmitError("Wybierz parking.");
+      return;
+    }
+    if (hours <= 0) {
+      setSubmitError("Godziny rezerwacji są nieprawidłowe.");
+      return;
+    }
+
+    const payload = {
+      customerId: user.customerId,
+      parkingLotId: parking.id,
+      startAt: `${date}T${timeFrom}:00`,
+      endAt: `${date}T${timeTo}:00`,
+    };
+    if (vehicleMode === "saved" && selectedVehicle?.id) {
+      payload.vehicleId = selectedVehicle.id;
+    } else if (vehicleMode === "manual") {
+      const trimmed = plate.trim().replace(/\s+/g, "").toUpperCase();
+      if (!trimmed) {
+        setSubmitError("Podaj numer rejestracyjny.");
+        return;
+      }
+      payload.plateNumber = trimmed;
+      payload.countryCode = "PL";
+    } else {
+      setSubmitError("Wybierz pojazd lub wpisz tablicę ręcznie.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const reservation = await createReservation(payload);
+      // Symulacja płatności — od razu potwierdzamy i zapisujemy Payment.
+      // W realu byłby tu callback od bramki (BLIK/karta).
+      const methodMap = { blik: "BLIK", card: "CARD", gpay: "CARD" };
+      const confirmed = await confirmReservation(
+        reservation.id,
+        methodMap[payMethod] || "BLIK",
+        `MOCK_${payMethod.toUpperCase()}_${Date.now()}`
+      );
+      resetWizard();
+      setToast(`✓ Rezerwacja potwierdzona! Kod: ${confirmed.code}`);
+      setPage("reservations");
+    } catch (err) {
+      setSubmitError(err.message || "Nie udało się utworzyć rezerwacji.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const StepBar = ({ current }) => (
@@ -148,7 +219,13 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
       <div className="reservation-filters">
         <div className="fg">
           <label className="fl">Data</label>
-          <input className="fi" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            className="fi"
+            type="date"
+            value={date}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
         <div className="fg">
           <label className="fl">Od</label>
@@ -159,7 +236,13 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
           <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </div>
         <div className="filter-summary">
-          <span>{hours > 0 ? `${hours} h postoju` : "Wybierz poprawne godziny"}</span>
+          <span>
+            {isPastReservation
+              ? "Termin w przeszłości — wybierz przyszły"
+              : hours > 0
+                ? `${hours} h postoju`
+                : "Wybierz poprawne godziny"}
+          </span>
           <strong>{filteredParkings.length} parkingów dostępnych</strong>
         </div>
       </div>
@@ -199,7 +282,7 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
               subdomains="abcd"
               maxZoom={20}
             />
-            {MOCK_PARKINGS.map((p) => {
+            {parkings.map((p) => {
               const availability = getParkingAvailability(p, date, timeFrom, timeTo);
               return (
               <Marker
@@ -233,7 +316,11 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
       </div>
 
       <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-        <button className="btn btn-a" disabled={!selectedId} onClick={() => setStep(2)}>
+        <button
+          className="btn btn-a"
+          disabled={!selectedId || isPastReservation || hours <= 0}
+          onClick={() => setStep(2)}
+        >
           Dalej <I.Arr />
         </button>
       </div>
@@ -321,11 +408,17 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
             </div>
           )}
 
+          {isPastReservation && (
+            <div className="auth-error" style={{ marginBottom: 16 }}>
+              <I.Alert /> Wybrana data i godzina są już w przeszłości. Wybierz przyszły termin.
+            </div>
+          )}
+
           <div className="wt-acts">
             <div />
             <button
               className="btn btn-a"
-              disabled={!activePlate || hours <= 0}
+              disabled={!activePlate || hours <= 0 || isPastReservation}
               onClick={() => setStep(3)}
             >
               Przejdź do płatności <I.Arr />
@@ -429,12 +522,19 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
             </div>
           )}
 
+          {submitError && (
+            <div className="auth-error" style={{ marginTop: 16 }}>
+              <I.Alert /> {submitError}
+            </div>
+          )}
+
           <button
             className="btn btn-a btn-block"
             style={{ marginTop: 20 }}
             onClick={handleConfirm}
+            disabled={submitting}
           >
-            Zapłać {total} zł i zarezerwuj <I.Check />
+            {submitting ? "Tworzenie rezerwacji…" : <>Zapłać {total} zł i zarezerwuj <I.Check /></>}
           </button>
         </div>
 

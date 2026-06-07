@@ -1006,37 +1006,46 @@ body {
 
 /* ── Wizard (multi-step form) ── */
 .wt { max-width: 680px; margin: 0 auto }
-.wt-bar { display: flex; align-items: center; margin-bottom: 32px; padding: 0 8px }
-.wt-s { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative }
+.wt-bar { display: flex; align-items: flex-start; margin-bottom: 36px; padding: 0 8px }
+.wt-s { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; min-width: 0 }
 .wt-d {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 2px solid var(--border2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text3);
-  background: var(--bg2);
+  background: var(--bg);
   position: relative;
   z-index: 2;
   transition: all var(--tr);
 }
-.wt-s.on .wt-d { border-color: var(--accent); color: var(--accent); background: var(--accent-bg) }
-.wt-s.ok .wt-d { border-color: var(--success); background: var(--success-bg); color: var(--success) }
-.wt-l { font-size: 11px; color: var(--text3); margin-top: 5px; font-weight: 500 }
-.wt-s.on .wt-l { color: var(--accent) }
-.wt-s.ok .wt-l { color: var(--success) }
+.wt-s.on .wt-d {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 4px var(--accent-bg);
+}
+.wt-s.ok .wt-d {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+.wt-l { font-size: 12px; color: var(--text3); margin-top: 10px; font-weight: 500; text-align: center }
+.wt-s.on .wt-l { color: var(--accent); font-weight: 700 }
+.wt-s.ok .wt-l { color: var(--success); font-weight: 600 }
 .wt-line {
   position: absolute;
-  top: 16px;
-  left: 50%;
-  right: -50%;
+  top: 17px;
+  left: calc(50% + 22px);
+  right: calc(-50% + 22px);
   height: 2px;
   background: var(--border);
-  z-index: 1;
+  z-index: 0;
 }
 .wt-s.ok .wt-line { background: var(--success) }
 .wt-card {
@@ -1318,6 +1327,14 @@ body {
 }
 .qa-item:hover .qa-item-ic { border-color: var(--border2); background: var(--bg2) }
 
+.qa-inline {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: var(--bg3);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
 /* ── Join page ── */
 .j-hero { text-align: center; padding: 48px 24px; max-width: 560px; margin: 0 auto }
 .j-hero h1 {
@@ -1547,4 +1564,17 @@ body {
   .reservation-filters,
   .details-filter { grid-template-columns: 1fr }
   .parking-hero-copy h1 { font-size: 30px }
+  /* Form rows stack vertically */
+  .fr { grid-template-columns: 1fr }
+  /* Dashboard stat grid single column */
+  .d-grid { grid-template-columns: 1fr }
+  /* Admin & reservations tables scroll */
+  .admin-table, .dtbl { font-size: 11px }
+  .card { overflow-x: auto }
+  /* Reserve wizard narrows */
+  .pay-methods { grid-template-columns: 1fr 1fr }
+  /* Nav pill wraps */
+  .pill span { display: none }
+  /* Home stats */
+  .home-stats { gap: 16px }
 }

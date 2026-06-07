@@ -1,8 +1,32 @@
+import { useEffect, useState } from "react";
 import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
+import { fetchParkingLots, fetchStatsOverview } from "../data/api";
 
 export default function HomePage({ setPage }) {
+  // Start na danych mockowych, po zamontowaniu pobierz realne z backendu.
+  const [parkings, setParkings] = useState(MOCK_PARKINGS);
+  const [overview, setOverview] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchParkingLots().then((data) => {
+      if (active) setParkings(data);
+    });
+    fetchStatsOverview()
+      .then((data) => { if (active) setOverview(data); })
+      .catch(() => { if (active) setOverview(null); });
+    return () => { active = false; };
+  }, []);
+
+  const placesLabel = overview?.totalPlaces != null
+    ? overview.totalPlaces.toLocaleString("pl")
+    : "—";
+  const lotsLabel = overview?.totalParkingLots != null
+    ? overview.totalParkingLots
+    : "—";
+
   return (
     <div className="fin">
       <div className="home-hero">
@@ -10,11 +34,11 @@ export default function HomePage({ setPage }) {
         <p>Zarezerwuj miejsce, sprawdź status rezerwacji lub znajdź parking w okolicy.</p>
         <div className="home-stats">
           <div>
-            <span className="home-stat-n">1 250+</span>
+            <span className="home-stat-n">{placesLabel}</span>
             <div className="home-stat-l">Miejsc parkingowych</div>
           </div>
           <div>
-            <span className="home-stat-n">15</span>
+            <span className="home-stat-n">{lotsLabel}</span>
             <div className="home-stat-l">Parkingów w sieci</div>
           </div>
         </div>
@@ -31,7 +55,7 @@ export default function HomePage({ setPage }) {
       </div>
 
       <div className="card-grid">
-        {MOCK_PARKINGS.slice(0, 4).map((p) => (
+        {parkings.slice(0, 4).map((p) => (
           <PCard key={p.id} p={p} onClick={() => setPage("reserve")} />
         ))}
       </div>

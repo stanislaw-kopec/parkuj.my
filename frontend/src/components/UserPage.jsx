@@ -1,28 +1,43 @@
+import { useEffect, useState } from "react";
 import * as I from "../icons";
+import { fetchVehicles, deleteVehicle, setPrimaryVehicle, fetchCustomerStats } from "../data/api";
 
 const sortVehicles = (vehicles) =>
   [...vehicles].sort((a, b) => Number(b.primary) - Number(a.primary));
 
 export default function UserPage({ user, vehicles, setVehicles, setPage, setToast }) {
-  const makePrimary = (id) => {
-    setVehicles(vehicles.map((vehicle) => ({ ...vehicle, primary: vehicle.id === id })));
-    setToast("Zmieniono pojazd główny.");
+  const [customerStats, setCustomerStats] = useState(null);
+
+  useEffect(() => {
+    if (!user?.customerId) return;
+    fetchCustomerStats(user.customerId)
+      .then(setCustomerStats)
+      .catch(() => setCustomerStats(null));
+  }, [user?.customerId]);
+
+  const refresh = async () => {
+    if (!user?.customerId) return;
+    try { setVehicles(await fetchVehicles(user.customerId)); } catch { /* zostaw stan */ }
   };
 
-  const removeVehicle = (vehicle) => {
-    if (vehicle.hasActiveReservation) {
-      setToast("Nie można usunąć pojazdu z aktywną rezerwacją.");
-      return;
+  const makePrimary = async (id) => {
+    try {
+      await setPrimaryVehicle(id, user.customerId);
+      await refresh();
+      setToast("Zmieniono pojazd główny.");
+    } catch (err) {
+      setToast(err.message || "Nie udało się zmienić pojazdu głównego.");
     }
+  };
 
-    const remaining = vehicles.filter((item) => item.id !== vehicle.id);
-    const hasPrimary = remaining.some((item) => item.primary);
-    setVehicles(
-      hasPrimary || !remaining.length
-        ? remaining
-        : remaining.map((item, index) => ({ ...item, primary: index === 0 }))
-    );
-    setToast("Pojazd usunięty.");
+  const removeVehicle = async (vehicle) => {
+    try {
+      await deleteVehicle(vehicle.id, user.customerId);
+      await refresh();
+      setToast("Pojazd usunięty.");
+    } catch (err) {
+      setToast(err.message || "Nie udało się usunąć pojazdu.");
+    }
   };
 
   return (
@@ -42,6 +57,12 @@ export default function UserPage({ user, vehicles, setVehicles, setPage, setToas
         <div>
           <h2>{user?.name || "Użytkownik"}</h2>
           <p>{user?.email || "Brak adresu e-mail"}</p>
+          {customerStats && (
+            <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+              {customerStats.totalReservations} rezerwacji
+              {customerStats.totalSpent > 0 && ` · ${Number(customerStats.totalSpent).toLocaleString("pl")} zł wydane`}
+            </p>
+          )}
         </div>
         <button className="btn btn-o btn-sm" onClick={() => setPage("settings")}>
           <I.Gear /> Ustawienia

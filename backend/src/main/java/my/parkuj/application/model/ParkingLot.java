@@ -2,9 +2,12 @@ package my.parkuj.application.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -42,6 +45,12 @@ public class ParkingLot {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+
+    // Właściciel parkingu — klient, który zarejestrował obiekt przez wizard /join.
+    // Nullable: parkingi zasiane przez DataInitializer nie mają właściciela.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_customer_id")
+    private Customer owner;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -90,6 +99,9 @@ public class ParkingLot {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Customer getOwner() { return owner; }
+    public void setOwner(Customer owner) { this.owner = owner; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

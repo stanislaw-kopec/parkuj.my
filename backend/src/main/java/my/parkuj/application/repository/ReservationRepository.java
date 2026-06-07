@@ -31,4 +31,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Intege
         @Param("endAt") LocalDateTime endAt,
         @Param("statuses") Collection<ReservationStatus> statuses
     );
+
+    @Query("""
+        select count(r) from Reservation r
+        where r.parkingLot.parkingLotId = :parkingLotId
+          and r.status in :statuses
+        """)
+    long countByParkingLotAndStatuses(
+        @Param("parkingLotId") Integer parkingLotId,
+        @Param("statuses") Collection<ReservationStatus> statuses
+    );
+
+    List<Reservation> findByParkingLotParkingLotIdAndReservedAtBetween(
+        Integer parkingLotId,
+        LocalDateTime from,
+        LocalDateTime to
+    );
 }

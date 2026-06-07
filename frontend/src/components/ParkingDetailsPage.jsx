@@ -125,7 +125,7 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
           <label className="fl">Do</label>
           <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </div>
-        <div className="filter-summary">
+        <div className={`filter-summary${avail?.available ? " is-available" : ""}`}>
           {checkingAvail ? (
             <span>Sprawdzam…</span>
           ) : avail ? (

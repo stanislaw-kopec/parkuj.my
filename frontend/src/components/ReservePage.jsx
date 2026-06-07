@@ -6,7 +6,7 @@ import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
 import { calcHours, getParkingAvailability } from "../data/parkingAvailability";
-import { fetchParkingLots, createReservation } from "../data/api";
+import { fetchParkingLots, createReservation, confirmReservation } from "../data/api";
 
 const STEPS = [
   { n: 1, label: "Parking" },
@@ -138,8 +138,16 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
     setSubmitError("");
     try {
       const reservation = await createReservation(payload);
+      // Symulacja płatności — od razu potwierdzamy i zapisujemy Payment.
+      // W realu byłby tu callback od bramki (BLIK/karta).
+      const methodMap = { blik: "BLIK", card: "CARD", gpay: "CARD" };
+      const confirmed = await confirmReservation(
+        reservation.id,
+        methodMap[payMethod] || "BLIK",
+        `MOCK_${payMethod.toUpperCase()}_${Date.now()}`
+      );
       resetWizard();
-      setToast(`✓ Rezerwacja potwierdzona! Kod: ${reservation.code}`);
+      setToast(`✓ Rezerwacja potwierdzona! Kod: ${confirmed.code}`);
       setPage("reservations");
     } catch (err) {
       setSubmitError(err.message || "Nie udało się utworzyć rezerwacji.");

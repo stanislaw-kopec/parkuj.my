@@ -96,6 +96,38 @@ export function updateParkingLotConfig(lotId, payload) {
   });
 }
 
+// Parkingi zarejestrowane przez konkretnego właściciela — do panelu /dashboard.
+export async function fetchMyParkingLots(customerId) {
+  const data = await apiCall(`/api/parking-lots/my?customerId=${customerId}`);
+  return Array.isArray(data) ? data : [];
+}
+
+// Tworzy parking + cennik — wywoływane po wizardzie /join.
+export function createParkingLot(payload) {
+  return apiCall("/api/parking-lots", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// Statystyki publiczne sieci — kafelki na HomePage.
+export function fetchStatsOverview() {
+  return apiCall("/api/stats/overview");
+}
+
+// Potwierdzenie rezerwacji + zapis płatności (status → CONFIRMED).
+export async function confirmReservation(reservationId, paymentMethod, providerReference) {
+  const params = new URLSearchParams();
+  if (paymentMethod) params.set("paymentMethod", paymentMethod);
+  if (providerReference) params.set("providerReference", providerReference);
+  const qs = params.toString();
+  const data = await apiCall(
+    `/api/reservations/${reservationId}/confirm${qs ? `?${qs}` : ""}`,
+    { method: "POST" }
+  );
+  return mapReservation(data);
+}
+
 export function sendContactMessage(payload) {
   return apiCall("/api/contact", { method: "POST", body: JSON.stringify(payload) });
 }

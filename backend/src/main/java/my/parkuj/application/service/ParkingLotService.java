@@ -10,14 +10,18 @@ import java.util.List;
 import java.util.Map;
 import my.parkuj.application.dto.AvailabilityDTO;
 import my.parkuj.application.dto.ParkingLotConfigDTO;
+import my.parkuj.application.dto.ParkingLotCreateDTO;
 import my.parkuj.application.dto.ParkingLotDTO;
 import my.parkuj.application.dto.ParkingLotStatsDTO;
 import my.parkuj.application.dto.PriceEstimateDTO;
 import my.parkuj.application.enums.ReservationStatus;
+import my.parkuj.application.model.Customer;
 import my.parkuj.application.model.ParkingLot;
 import my.parkuj.application.model.PricingPlan;
 import my.parkuj.application.model.Reservation;
+import my.parkuj.application.repository.CustomerRepository;
 import my.parkuj.application.repository.ParkingLotRepository;
+import my.parkuj.application.repository.PricingPlanRepository;
 import my.parkuj.application.repository.ReservationRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,15 +40,21 @@ public class ParkingLotService {
     private final ParkingLotRepository parkingLotRepository;
     private final ReservationRepository reservationRepository;
     private final PricingService pricingService;
+    private final CustomerRepository customerRepository;
+    private final PricingPlanRepository pricingPlanRepository;
 
     public ParkingLotService(
         ParkingLotRepository parkingLotRepository,
         ReservationRepository reservationRepository,
-        PricingService pricingService
+        PricingService pricingService,
+        CustomerRepository customerRepository,
+        PricingPlanRepository pricingPlanRepository
     ) {
         this.parkingLotRepository = parkingLotRepository;
         this.reservationRepository = reservationRepository;
         this.pricingService = pricingService;
+        this.customerRepository = customerRepository;
+        this.pricingPlanRepository = pricingPlanRepository;
     }
 
     public List<ParkingLotDTO> getActiveParkingLots() {
@@ -52,6 +62,76 @@ public class ParkingLotService {
             .stream()
             .map(this::toDto)
             .toList();
+    }
+
+    // Parkingi zarejestrowane przez konkretnego właściciela (po wizardzie /join).
+    public List<ParkingLotDTO> getLotsForOwner(Integer ownerCustomerId) {
+        if (ownerCustomerId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Brak identyfikatora właściciela.");
+        }
+        return parkingLotRepository.findByOwnerCustomerIdOrderByCreatedAtDesc(ownerCustomerId)
+            .stream()
+            .map(this::toDto)
+            .toList();
+    }
+
+    // Tworzy parking + powiązany pricing_plan + przypisuje właściciela. Wywoływane z /join wizardu.
+    @Transactional
+    public ParkingLotDTO createForOwner(ParkingLotCreateDTO request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Brak danych parkingu.");
+        }
+        if (request.getOwnerCustomerId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Brak identyfikatora właściciela.");
+        }
+        Customer owner = customerRepository.findById(request.getOwnerCustomerId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono klienta."));
+
+        String name = request.getName() == null ? "" : request.getName().trim();
+        String address = request.getAddress() == null ? "" : request.getAddress().trim();
+        if (name.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj nazwę parkingu.");
+        }
+        if (address.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj adres parkingu.");
+        }
+        int totalPlaces = request.getPlacesCount() == null ? 0 : request.getPlacesCount();
+        int reservable = request.getReservablePlacesCount() == null ? 0 : request.getReservablePlacesCount();
+        if (totalPlaces < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Liczba miejsc musi być większa niż 0.");
+        }
+        if (reservable < 0 || reservable > totalPlaces) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Liczba miejsc rezerwowanych nie może przekraczać liczby miejsc ogółem.");
+        }
+
+        String fullAddress = request.getCity() != null && !request.getCity().isBlank()
+            ? address + ", " + request.getCity().trim()
+            : address;
+
+        ParkingLot lot = new ParkingLot();
+        lot.setOwner(owner);
+        lot.setName(name);
+        lot.setAddress(fullAddress);
+        lot.setLatitude(request.getLatitude());
+        lot.setLongitude(request.getLongitude());
+        lot.setPlacesCount(totalPlaces);
+        lot.setReservablePlacesCount(reservable);
+        lot.setStatus("ACTIVE");
+        lot = parkingLotRepository.save(lot);
+
+        BigDecimal price = request.getPricePerHour() != null ? request.getPricePerHour() : BigDecimal.ZERO;
+        if (price.signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena nie może być ujemna.");
+        }
+        PricingPlan plan = new PricingPlan();
+        plan.setParkingLot(lot);
+        plan.setPricePerHour(price);
+        plan.setCurrency("PLN");
+        plan.setValidFrom(LocalDateTime.now());
+        pricingPlanRepository.save(plan);
+
+        return toDto(lot);
     }
 
     public ParkingLotDTO getParkingLot(Integer parkingLotId) {

@@ -4,14 +4,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 import my.parkuj.application.dto.AvailabilityDTO;
 import my.parkuj.application.dto.ParkingLotConfigDTO;
+import my.parkuj.application.dto.ParkingLotCreateDTO;
 import my.parkuj.application.dto.ParkingLotDTO;
 import my.parkuj.application.dto.ParkingLotStatsDTO;
 import my.parkuj.application.dto.PriceEstimateDTO;
 import my.parkuj.application.service.ParkingLotService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +34,19 @@ public class ParkingLotController {
     @GetMapping
     public List<ParkingLotDTO> getParkingLots() {
         return parkingLotService.getActiveParkingLots();
+    }
+
+    // Parkingi należące do zalogowanego właściciela — dla panelu /dashboard.
+    @GetMapping("/my")
+    public List<ParkingLotDTO> getMyParkingLots(@RequestParam Integer customerId) {
+        return parkingLotService.getLotsForOwner(customerId);
+    }
+
+    // Tworzy nowy parking + cennik. Wywoływane z wizardu /join po ostatnim kroku.
+    @PostMapping
+    public ResponseEntity<ParkingLotDTO> createParkingLot(@RequestBody ParkingLotCreateDTO request) {
+        ParkingLotDTO created = parkingLotService.createForOwner(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/{id}")

@@ -8,14 +8,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 import my.parkuj.application.dto.ReservationRequestDTO;
 import my.parkuj.application.dto.ReservationResponseDTO;
+import my.parkuj.application.enums.PaymentMethod;
+import my.parkuj.application.enums.PaymentStatus;
 import my.parkuj.application.enums.ReservationStatus;
 import my.parkuj.application.model.Customer;
 import my.parkuj.application.model.ParkingLot;
+import my.parkuj.application.model.Payment;
 import my.parkuj.application.model.PricingPlan;
 import my.parkuj.application.model.Reservation;
 import my.parkuj.application.model.Vehicle;
 import my.parkuj.application.repository.CustomerRepository;
 import my.parkuj.application.repository.ParkingLotRepository;
+import my.parkuj.application.repository.PaymentRepository;
 import my.parkuj.application.repository.PricingPlanRepository;
 import my.parkuj.application.repository.ReservationRepository;
 import my.parkuj.application.repository.VehicleRepository;
@@ -40,6 +44,7 @@ public class ReservationService {
     private final ParkingLotRepository parkingLotRepository;
     private final PricingPlanRepository pricingPlanRepository;
     private final ReservationRepository reservationRepository;
+    private final PaymentRepository paymentRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ReservationService(
@@ -47,13 +52,15 @@ public class ReservationService {
         VehicleRepository vehicleRepository,
         ParkingLotRepository parkingLotRepository,
         PricingPlanRepository pricingPlanRepository,
-        ReservationRepository reservationRepository
+        ReservationRepository reservationRepository,
+        PaymentRepository paymentRepository
     ) {
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
         this.parkingLotRepository = parkingLotRepository;
         this.pricingPlanRepository = pricingPlanRepository;
         this.reservationRepository = reservationRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     @Transactional
@@ -127,7 +134,7 @@ public class ReservationService {
     }
 
     @Transactional
-    public ReservationResponseDTO confirmReservation(Integer reservationId, String providerReference) {
+    public ReservationResponseDTO confirmReservation(Integer reservationId, String providerReference, String paymentMethod) {
         Reservation reservation = findReservation(reservationId);
         expireIfStale(reservation);
 
@@ -140,7 +147,31 @@ public class ReservationService {
         }
 
         reservation.setStatus(ReservationStatus.CONFIRMED);
-        return toResponse(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+
+        // Zapis "płatności" — w mockupie nie wołamy bramki płatności,
+        // ale zostawiamy ślad w tabeli payments żeby panel admina i przyszły
+        // refund/raport miał spójne dane.
+        Payment payment = new Payment();
+        payment.setReservation(saved);
+        payment.setAmount(saved.getPriceEstimated() != null ? saved.getPriceEstimated() : BigDecimal.ZERO);
+        payment.setCurrency(saved.getPricingPlan() != null ? saved.getPricingPlan().getCurrency() : "PLN");
+        payment.setPaymentMethod(resolvePaymentMethod(paymentMethod));
+        payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setProviderReference(providerReference);
+        payment.setPaidAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        return toResponse(saved);
+    }
+
+    private PaymentMethod resolvePaymentMethod(String raw) {
+        if (raw == null || raw.isBlank()) return PaymentMethod.BLIK;
+        try {
+            return PaymentMethod.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return PaymentMethod.BLIK;
+        }
     }
 
     @Transactional

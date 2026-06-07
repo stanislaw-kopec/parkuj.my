@@ -4,7 +4,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import * as I from "../icons";
-import { fetchParkingLots, fetchParkingLotStats, updateParkingLotConfig } from "../data/api";
+import { fetchMyParkingLots, fetchParkingLotStats, updateParkingLotConfig } from "../data/api";
 
 // Mock danych dot. wjazdów/wyjazdów — zostaje jako wizualizacja (US-K07/K09
 // wymaga OCR i tabeli parking_session, out of scope na zaliczenie).
@@ -24,7 +24,7 @@ const QUICK_ACTIONS = [
 
 const DAY_LABELS = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
 
-export default function Dashboard({ setToast }) {
+export default function Dashboard({ user, setPage, setToast }) {
   const [lotId, setLotId]                 = useState(null);
   const [stats, setStats]                 = useState(null);
   const [loading, setLoading]             = useState(true);
@@ -33,15 +33,16 @@ export default function Dashboard({ setToast }) {
   const [barrierOpen, setBarrierOpen]     = useState(false);
   const [split, setSplit]                 = useState({ total: 0, reservable: 0 });
 
-  // Pierwszy parking z aktywnych — w demo "panel operatora" pokazuje go domyślnie.
-  // Docelowo właściciel byłby przypisany do konkretnego parkingu (user ↔ parking_lot).
+  // Ładujemy TYLKO parking należący do zalogowanego właściciela (po wizardzie /join).
+  // Brak parkingu = ekran z CTA do dodania.
   useEffect(() => {
     let active = true;
+    if (!user?.customerId) { setLoading(false); return; }
     (async () => {
       try {
-        const lots = await fetchParkingLots();
+        const lots = await fetchMyParkingLots(user.customerId);
         if (!active || !lots?.length) { setLoading(false); return; }
-        const firstId = lots[0].id;
+        const firstId = lots[0].id ?? lots[0].parkingLotId;
         setLotId(firstId);
         const s = await fetchParkingLotStats(firstId);
         if (!active) return;
@@ -54,7 +55,7 @@ export default function Dashboard({ setToast }) {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [user?.customerId]);
 
   const refreshStats = async () => {
     if (!lotId) return;
@@ -120,7 +121,20 @@ export default function Dashboard({ setToast }) {
 
   if (!stats) return (
     <div className="fin">
-      <div className="sh"><div><h2 className="st">Panel zarządzania</h2><p className="ss">Brak danych parkingu w bazie.</p></div></div>
+      <div className="sh">
+        <div>
+          <h2 className="st">Panel zarządzania</h2>
+          <p className="ss">Nie masz jeszcze zarejestrowanego parkingu.</p>
+        </div>
+      </div>
+      <div className="empty" style={{ padding: "60px 24px" }}>
+        <div className="empty-ic"><I.Dash /></div>
+        <h3>Dodaj swój pierwszy parking</h3>
+        <p>Przejdź przez krótki kreator, by zarejestrować obiekt — od tego momentu zobaczysz tu obłożenie, przychody i podział miejsc.</p>
+        <button className="btn btn-a" style={{ marginTop: 16 }} onClick={() => setPage("join")}>
+          Dołącz z parkingiem <I.Arr />
+        </button>
+      </div>
     </div>
   );
 

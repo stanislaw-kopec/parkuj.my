@@ -17,7 +17,8 @@ const randomWarsawCoords = () => ({
 });
 
 export default function JoinPage({ user, setUser, setPage, setRole }) {
-  const [wizardStep, setWizardStep] = useState(0);
+  // Zalogowany użytkownik wchodzący na /join chce kreatora, nie ekranu marketingowego.
+  const [wizardStep, setWizardStep] = useState(user ? 1 : 0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [createdLot, setCreatedLot] = useState(null);

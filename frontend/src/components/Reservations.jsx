@@ -34,10 +34,18 @@ export default function Reservations({ user, setPage, setToast }) {
 
   useEffect(() => { refresh(); }, [user?.customerId]);
 
-  const cancel = async (e, id) => {
+  const cancel = async (e, r) => {
     e.stopPropagation();
+    const startTime = r.time ? r.time.split("–")[0] : null;
+    if (r.date && startTime) {
+      const startDate = new Date(`${r.date}T${startTime}:00`);
+      if (startDate - new Date() < 30 * 60 * 1000) {
+        setToast("Nie można anulować rezerwacji na mniej niż 30 minut przed jej rozpoczęciem.");
+        return;
+      }
+    }
     try {
-      await cancelReservation(id, user.customerId);
+      await cancelReservation(r.id, user.customerId);
       await refresh();
       setToast("Rezerwacja anulowana.");
     } catch (err) {
@@ -148,7 +156,7 @@ export default function Reservations({ user, setPage, setToast }) {
             {r.status === "active" && (
               <button
                 className="btn btn-danger btn-sm"
-                onClick={(e) => cancel(e, r.id)}
+                onClick={(e) => cancel(e, r)}
                 style={{ marginLeft: 4 }}
               >
                 <I.X /> Anuluj

@@ -56,7 +56,7 @@ export default function HomePage({ setPage }) {
 
       <div className="card-grid">
         {parkings.slice(0, 4).map((p) => (
-          <PCard key={p.id} p={p} onClick={() => setPage("reserve")} />
+          <PCard key={p.id} p={p} onClick={() => setPage("parkingDetails", { parkingId: p.id })} />
         ))}
       </div>
     </div>

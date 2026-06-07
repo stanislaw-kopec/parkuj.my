@@ -74,7 +74,8 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
   const selectedVehicle = savedVehicles.find((v) => v.id === selectedVehicleId) || savedVehicles[0];
   const activePlate = vehicleMode === "saved" ? selectedVehicle?.plate || "" : plate;
   const hours = calcHours(timeFrom, timeTo);
-  const total = Math.round(hours * (parking?.price || 0));
+  const totalRaw = Math.ceil(hours) * (parking?.price || 0);
+  const total = totalRaw > 0 ? totalRaw.toFixed(2) : 0;
   // Rezerwacja w przeszłości — porównujemy start z bieżącą chwilą.
   const isPastReservation = date && timeFrom
     ? new Date(`${date}T${timeFrom}:00`) < new Date()
@@ -188,7 +189,7 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
           <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0", fontWeight: 800, fontSize: 16 }}>
             <span style={{ color: "var(--text)" }}>Suma</span>
             <span style={{ color: "var(--accent)", fontFamily: "'Space Mono',monospace" }}>
-              {total > 0 ? `${total} zł` : "—"}
+              {totalRaw > 0 ? `${total} zł` : "—"}
             </span>
           </div>
         </div>
@@ -403,7 +404,7 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
 
           {hours > 0 && (
             <div style={{ padding: "10px 14px", background: "var(--bg3)", borderRadius: 8, fontSize: 13, marginBottom: 18, display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text2)" }}>{hours} h × {parking?.price} zł</span>
+              <span style={{ color: "var(--text2)" }}>{Math.ceil(hours)} h × {parking?.price} zł</span>
               <span style={{ fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono',monospace" }}>{total} zł</span>
             </div>
           )}

@@ -44,7 +44,7 @@ body {
   padding: 0 24px;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
 }
 .nav-in {
   max-width: 1140px;
@@ -205,7 +205,7 @@ body {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   padding: 6px;
   min-width: 200px;
-  z-index: 200;
+  z-index: 1001;
 }
 .umi {
   display: flex;

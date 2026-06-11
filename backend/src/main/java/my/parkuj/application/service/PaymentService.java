@@ -22,11 +22,11 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentDTO payForReservation(Integer reservationId, PaymentMethod method) {
+    public PaymentDTO payForReservation(Integer reservationId, Integer customerId, PaymentMethod method) {
         // confirmReservation już tworzy rekord Payment (status=COMPLETED) — tu
         // tylko zwracamy zamapowane dane bez zapisu duplikatu.
         ReservationResponseDTO reservation = reservationService.confirmReservation(
-            reservationId, "MOCK_PAYMENT", method != null ? method.name() : null
+            reservationId, customerId, "MOCK_PAYMENT", method != null ? method.name() : null
         );
 
         PaymentDTO dto = new PaymentDTO();

@@ -10,15 +10,18 @@ import my.parkuj.application.enums.ReservationStatus;
 import my.parkuj.application.model.ParkingLot;
 import my.parkuj.application.model.Payment;
 import my.parkuj.application.model.Reservation;
+import my.parkuj.application.repository.AdminUserRepository;
 import my.parkuj.application.repository.CustomerRepository;
 import my.parkuj.application.repository.IncidentReportRepository;
 import my.parkuj.application.repository.ParkingLotRepository;
 import my.parkuj.application.repository.PaymentRepository;
 import my.parkuj.application.repository.ReservationRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -33,19 +36,22 @@ public class StatsController {
     private final ReservationRepository reservationRepository;
     private final PaymentRepository paymentRepository;
     private final IncidentReportRepository incidentReportRepository;
+    private final AdminUserRepository adminUserRepository;
 
     public StatsController(
         ParkingLotRepository parkingLotRepository,
         CustomerRepository customerRepository,
         ReservationRepository reservationRepository,
         PaymentRepository paymentRepository,
-        IncidentReportRepository incidentReportRepository
+        IncidentReportRepository incidentReportRepository,
+        AdminUserRepository adminUserRepository
     ) {
         this.parkingLotRepository = parkingLotRepository;
         this.customerRepository = customerRepository;
         this.reservationRepository = reservationRepository;
         this.paymentRepository = paymentRepository;
         this.incidentReportRepository = incidentReportRepository;
+        this.adminUserRepository = adminUserRepository;
     }
 
     // Publiczne statystyki sieci — kafelki na HomePage.
@@ -61,9 +67,16 @@ public class StatsController {
         return response;
     }
 
-    // Statystyki dla panelu admina — 4 hero kafelki.
+    // Statystyki dla panelu admina — 4 hero kafelki. Ujawniają łączny przychód,
+    // więc tak jak /api/admin/* wymagają identyfikatora aktywnego admina.
     @GetMapping("/admin")
-    public Map<String, Object> getAdminStats() {
+    public Map<String, Object> getAdminStats(@RequestParam Integer adminId) {
+        boolean ok = adminId != null && adminUserRepository.findById(adminId)
+            .map(a -> !"INACTIVE".equalsIgnoreCase(a.getStatus()))
+            .orElse(false);
+        if (!ok) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wymagane konto administratora.");
+        }
         BigDecimal totalRevenue = paymentRepository.findAll().stream()
             .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
             .map(Payment::getAmount)

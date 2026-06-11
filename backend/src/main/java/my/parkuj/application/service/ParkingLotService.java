@@ -177,7 +177,7 @@ public class ParkingLotService {
 
     // Zmiana ceny godzinowej — append-only: zamknięcie bieżącego planu + nowy rekord.
     @Transactional
-    public ParkingLotDTO updatePrice(Integer parkingLotId, BigDecimal newPrice) {
+    public ParkingLotDTO updatePrice(Integer parkingLotId, Integer ownerCustomerId, BigDecimal newPrice) {
         if (newPrice == null || newPrice.signum() < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena musi być liczbą nieujemną.");
         }
@@ -185,6 +185,7 @@ public class ParkingLotService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena nie może przekraczać 9999.99 zł/h.");
         }
         ParkingLot lot = findParkingLot(parkingLotId);
+        ensureOwner(lot, ownerCustomerId);
         pricingPlanRepository
             .findFirstByParkingLotParkingLotIdAndValidToIsNullOrderByValidFromDesc(parkingLotId)
             .ifPresent(plan -> {
@@ -200,13 +201,14 @@ public class ParkingLotService {
         return toDto(lot);
     }
 
-    // US-A05 — operator zmienia podział: ile ogółem, ile na rezerwacje online.
+    // US-A05 — operator zmienia podział miejsc i godziny otwarcia.
     @Transactional
-    public ParkingLotDTO updateConfig(Integer parkingLotId, ParkingLotConfigDTO config) {
+    public ParkingLotDTO updateConfig(Integer parkingLotId, Integer ownerCustomerId, ParkingLotConfigDTO config) {
         if (config == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Brak danych konfiguracji.");
         }
         ParkingLot lot = findParkingLot(parkingLotId);
+        ensureOwner(lot, ownerCustomerId);
 
         if (config.getPlacesCount() != null) {
             if (config.getPlacesCount() < 0) {
@@ -225,7 +227,25 @@ public class ParkingLotService {
                 "Liczba miejsc rezerwowanych nie może przekraczać liczby miejsc ogółem.");
         }
 
+        // null = bez zmiany, "" = czyszczenie (parking czynny całą dobę).
+        if (config.getOpenFrom() != null) {
+            lot.setOpenFrom(parseTime(config.getOpenFrom()));
+        }
+        if (config.getOpenTo() != null) {
+            lot.setOpenTo(parseTime(config.getOpenTo()));
+        }
+
         return toDto(parkingLotRepository.save(lot));
+    }
+
+    // Modyfikować parking może tylko jego właściciel. Parkingi seedowane (owner == null)
+    // nie mają właściciela i nie są edytowalne z poziomu API.
+    private void ensureOwner(ParkingLot lot, Integer ownerCustomerId) {
+        if (ownerCustomerId == null
+            || lot.getOwner() == null
+            || !lot.getOwner().getCustomerId().equals(ownerCustomerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Brak uprawnień do zarządzania tym parkingiem.");
+        }
     }
 
     // Statystyki dla panelu operatora — bieżący stan + 7-dniowa historia rezerwacji i przychodu.

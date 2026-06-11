@@ -6,10 +6,12 @@ import my.parkuj.application.dto.CustomerDTO;
 import my.parkuj.application.dto.IncidentReportDTO;
 import my.parkuj.application.dto.LoginRequestDTO;
 import my.parkuj.application.dto.ReservationResponseDTO;
+import my.parkuj.application.repository.AdminUserRepository;
 import my.parkuj.application.service.AdminAuthService;
 import my.parkuj.application.service.CustomerService;
 import my.parkuj.application.service.IncidentReportService;
 import my.parkuj.application.service.ReservationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -27,17 +30,32 @@ public class AdminController {
     private final CustomerService customerService;
     private final ReservationService reservationService;
     private final IncidentReportService incidentReportService;
+    private final AdminUserRepository adminUserRepository;
 
     public AdminController(
         AdminAuthService adminAuthService,
         CustomerService customerService,
         ReservationService reservationService,
-        IncidentReportService incidentReportService
+        IncidentReportService incidentReportService,
+        AdminUserRepository adminUserRepository
     ) {
         this.adminAuthService = adminAuthService;
         this.customerService = customerService;
         this.reservationService = reservationService;
         this.incidentReportService = incidentReportService;
+        this.adminUserRepository = adminUserRepository;
+    }
+
+    // Brak JWT w tej fazie projektu (jak przy customerId) — minimum: każdy endpoint admina
+    // wymaga adminId istniejącego, aktywnego konta. Wcześniej dane klientów i rezerwacji
+    // dało się pobrać czystym curl-em bez logowania.
+    private void requireActiveAdmin(Integer adminId) {
+        boolean ok = adminId != null && adminUserRepository.findById(adminId)
+            .map(a -> !"INACTIVE".equalsIgnoreCase(a.getStatus()))
+            .orElse(false);
+        if (!ok) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wymagane konto administratora.");
+        }
     }
 
     @PostMapping("/auth/login")
@@ -47,19 +65,22 @@ public class AdminController {
 
     // Lista wszystkich klientów (panel admina).
     @GetMapping("/customers")
-    public List<CustomerDTO> getAllCustomers() {
+    public List<CustomerDTO> getAllCustomers(@RequestParam Integer adminId) {
+        requireActiveAdmin(adminId);
         return customerService.getAllCustomers();
     }
 
     // Lista wszystkich rezerwacji w systemie (panel admina).
     @GetMapping("/reservations")
-    public List<ReservationResponseDTO> getAllReservations() {
+    public List<ReservationResponseDTO> getAllReservations(@RequestParam Integer adminId) {
+        requireActiveAdmin(adminId);
         return reservationService.getAllReservations();
     }
 
     // Incydenty (US-A04) — pełen CRUD dla panelu admina.
     @GetMapping("/incidents")
-    public List<IncidentReportDTO> getAllIncidents() {
+    public List<IncidentReportDTO> getAllIncidents(@RequestParam Integer adminId) {
+        requireActiveAdmin(adminId);
         return incidentReportService.getAll();
     }
 
@@ -68,14 +89,17 @@ public class AdminController {
         @RequestParam Integer adminId,
         @RequestBody IncidentReportDTO request
     ) {
+        requireActiveAdmin(adminId);
         return incidentReportService.create(adminId, request);
     }
 
     @PatchMapping("/incidents/{id}/status")
     public IncidentReportDTO updateIncidentStatus(
         @PathVariable Integer id,
-        @RequestParam String status
+        @RequestParam String status,
+        @RequestParam Integer adminId
     ) {
-        return incidentReportService.updateStatus(id, status);
+        requireActiveAdmin(adminId);
+        return incidentReportService.updateStatus(id, status, adminId);
     }
 }

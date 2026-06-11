@@ -136,8 +136,17 @@ public class ReservationService {
     }
 
     @Transactional(noRollbackFor = ResponseStatusException.class)
-    public ReservationResponseDTO confirmReservation(Integer reservationId, String providerReference, String paymentMethod) {
+    public ReservationResponseDTO confirmReservation(Integer reservationId, Integer customerId, String providerReference, String paymentMethod) {
         Reservation reservation = findReservation(reservationId);
+
+        // Potwierdzić może tylko właściciel rezerwacji — bez tego każdy, kto zgadnie ID,
+        // mógł "opłacić" cudzą rezerwację przez Swaggera.
+        if (customerId == null
+            || reservation.getCustomer() == null
+            || !reservation.getCustomer().getCustomerId().equals(customerId)) {
+            throw notFound("Nie znaleziono rezerwacji klienta.");
+        }
+
         expireIfStale(reservation);
 
         if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
@@ -212,14 +221,21 @@ public class ReservationService {
         return toResponse(cancelled);
     }
 
-    // Scheduler — co 60s zerujemy PENDING-i, które nie zostały opłacone w 15 minut.
-    // Bez tego rezerwacje siedzą wiecznie w PENDING i blokują miejsca.
+    // Scheduler — co 60s:
+    // 1. PENDING nieopłacone w 15 minut → EXPIRED (przestają blokować miejsca),
+    // 2. CONFIRMED/ACTIVE po endAt → COMPLETED (bez tego rezerwacja po terminie
+    //    wisiała wiecznie jako "aktywna" i dało się ją anulować z refundem).
     @Scheduled(fixedDelay = 60_000)
     @Transactional
     public void expireStalePending() {
         LocalDateTime now = LocalDateTime.now();
         for (Reservation r : reservationRepository.findByStatusAndExpiresAtBefore(ReservationStatus.PENDING, now)) {
             r.setStatus(ReservationStatus.EXPIRED);
+            reservationRepository.save(r);
+        }
+        List<ReservationStatus> running = List.of(ReservationStatus.CONFIRMED, ReservationStatus.ACTIVE);
+        for (Reservation r : reservationRepository.findByStatusInAndEndAtBefore(running, now)) {
+            r.setStatus(ReservationStatus.COMPLETED);
             reservationRepository.save(r);
         }
     }
@@ -237,6 +253,12 @@ public class ReservationService {
         return vehicleRepository
             .findByPlateNumberAndCountryCodeAndCustomerCustomerId(plate, country, customer.getCustomerId())
             .orElseGet(() -> {
+                // Para (tablica, kraj) jest unikalna globalnie — bez tego sprawdzenia
+                // zapis kończył się 500-tką z ConstraintViolation zamiast czytelnym 409.
+                if (vehicleRepository.existsByPlateNumberAndCountryCode(plate, country)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Ten numer rejestracyjny jest już przypisany do innego konta.");
+                }
                 Vehicle v = new Vehicle();
                 v.setCustomer(customer);
                 v.setPlateNumber(plate);
@@ -294,14 +316,44 @@ public class ReservationService {
     }
 
     private void validateOpeningHours(ParkingLot parkingLot, LocalDateTime startAt, LocalDateTime endAt) {
-        if (parkingLot.getOpenFrom() == null || parkingLot.getOpenTo() == null) return;
         java.time.LocalTime from = parkingLot.getOpenFrom();
         java.time.LocalTime to   = parkingLot.getOpenTo();
-        java.time.LocalTime resStart = startAt.toLocalTime();
-        java.time.LocalTime resEnd   = endAt.toLocalTime();
-        if (resStart.isBefore(from) || resEnd.isAfter(to)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                String.format("Parking jest czynny tylko w godzinach %s–%s.", from, to));
+        // Brak godzin albo from == to → czynny całą dobę.
+        if (from == null || to == null || from.equals(to)) return;
+
+        ResponseStatusException outsideHours = new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            String.format("Parking jest czynny tylko w godzinach %s–%s.", from, to));
+
+        if (from.isBefore(to)) {
+            // Parking dzienny: cała rezerwacja musi się zmieścić w obrębie jednego dnia
+            // w oknie [from, to]. Porównanie samych LocalTime przepuszczało rezerwację
+            // kończącą się o 00:00 następnego dnia (00:00 < openTo).
+            if (!startAt.toLocalDate().equals(endAt.toLocalDate())) {
+                // Wyjątek: koniec dokładnie o północy traktujemy jako koniec dnia startu.
+                boolean endsAtMidnight = endAt.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)
+                    && endAt.toLocalDate().equals(startAt.toLocalDate().plusDays(1));
+                if (!endsAtMidnight) throw outsideHours;
+                // 00:00 jako koniec dnia mieści się tylko gdy parking czynny do 24:00 — a to
+                // reprezentujemy przez from==to (całą dobę), więc tutaj zawsze poza godzinami.
+                throw outsideHours;
+            }
+            if (startAt.toLocalTime().isBefore(from) || endAt.toLocalTime().isAfter(to)) {
+                throw outsideHours;
+            }
+        } else {
+            // Parking nocny (np. 22:00–06:00): okno biegnie od `from` dnia D do `to` dnia D+1.
+            LocalDateTime windowStart;
+            if (!startAt.toLocalTime().isBefore(from)) {
+                windowStart = startAt.toLocalDate().atTime(from);
+            } else if (!startAt.toLocalTime().isAfter(to)) {
+                windowStart = startAt.toLocalDate().minusDays(1).atTime(from);
+            } else {
+                throw outsideHours;
+            }
+            LocalDateTime windowEnd = windowStart.toLocalDate().plusDays(1).atTime(to);
+            if (startAt.isBefore(windowStart) || endAt.isAfter(windowEnd)) {
+                throw outsideHours;
+            }
         }
     }
 

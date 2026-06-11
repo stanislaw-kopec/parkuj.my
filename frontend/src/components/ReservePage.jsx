@@ -246,10 +246,10 @@ export default function ReservePage({ user, vehicles = [], vehiclesOwnerId = nul
       // dopóki request jest w locie, pokazujemy wszystkie żeby uniknąć błyskania.
       const real = availabilityMap[p.id];
       const hasAvailability = real ? real.available : true;
-      const withinHours = hours > 0 ? isWithinOpeningHours(p) : true;
+      const withinHours = calcMinutes(timeFrom, timeTo) > 0 ? isWithinOpeningHours(p) : true;
       return matchesQuery && hasAvailability && withinHours;
     });
-  }, [parkings, search, availabilityMap, timeFrom, timeTo, hours]);
+  }, [parkings, search, availabilityMap, timeFrom, timeTo]);
 
   const parking = parkings.find((p) => p.id === selectedId);
   const savedVehicles = accountVehicles.length ? accountVehicles : [];
@@ -284,6 +284,11 @@ export default function ReservePage({ user, vehicles = [], vehiclesOwnerId = nul
     setVehicleMode("saved");
     setSelectedVehicleId(savedVehicles[0]?.id || null);
     setPlate("");
+    // Reset terminu — efekt zapisujący draft odpala się jeszcze przed unmountem
+    // i bez tego utrwalał starą datę/godziny do sessionStorage po clearDraft.
+    setDate(new Date().toISOString().slice(0, 10));
+    setTimeFrom("09:00");
+    setTimeTo("17:00");
     setBlik(["", "", "", "", "", ""]);
     setSubmitError("");
   };
@@ -341,6 +346,7 @@ export default function ReservePage({ user, vehicles = [], vehiclesOwnerId = nul
       const methodMap = { blik: "BLIK", card: "CARD", gpay: "CARD" };
       const confirmed = await confirmReservation(
         reservation.id,
+        user.customerId,
         methodMap[payMethod] || "BLIK",
         `MOCK_${payMethod.toUpperCase()}_${Date.now()}`
       );

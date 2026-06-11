@@ -73,11 +73,21 @@ public class IncidentReportService {
     }
 
     @Transactional
-    public IncidentReportDTO updateStatus(Integer incidentId, String newStatus) {
+    public IncidentReportDTO updateStatus(Integer incidentId, String newStatus, Integer adminId) {
         String status = normalize(newStatus);
         if (!ALLOWED_STATUSES.contains(status)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nieznany status incydentu.");
         }
+
+        AdminUser admin = adminUserRepository.findById(adminId != null ? adminId : -1)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono administratora."));
+
+        // US-A04: zamknąć incydent (RESOLVED) może wyłącznie SUPERADMIN.
+        if ("RESOLVED".equals(status) && admin.getRole() != my.parkuj.application.enums.AdminRole.SUPERADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Tylko SUPERADMIN może zamykać incydenty.");
+        }
+
         IncidentReport incident = incidentRepository.findById(incidentId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono incydentu."));
 

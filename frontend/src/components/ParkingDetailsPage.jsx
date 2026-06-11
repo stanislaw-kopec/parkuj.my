@@ -72,6 +72,7 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
   );
 
   const coords = parking.coords || [52.2297, 21.0122];
+  const totalSpots = parking.spots ?? 0;
   const availSpots = avail?.availableSpots ?? null;
   const totalReservable = avail?.totalReservableSpots ?? parking.available ?? 0;
   const occupiedSpots = avail?.occupiedReservableSpots ?? null;
@@ -101,7 +102,7 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
           <div className="parking-hero-meta">
             {parking.rating && <span><I.Star /> {parking.rating}</span>}
             <span>{parking.price ?? Number(parking.pricePerHour ?? 0)} zł/h</span>
-            <span>{parking.spots ?? 0} miejsc</span>
+            <span>{totalSpots} miejsc</span>
           </div>
         </div>
         <div className="parking-mini-map">

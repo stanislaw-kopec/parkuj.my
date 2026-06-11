@@ -19,6 +19,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Intege
 
     List<Reservation> findByStatusAndExpiresAtBefore(ReservationStatus status, LocalDateTime now);
 
+    List<Reservation> findByStatusInAndEndAtBefore(Collection<ReservationStatus> statuses, LocalDateTime now);
+
     List<Reservation> findByCustomerCustomerIdOrderByReservedAtDesc(Integer customerId);
 
     @Query("""

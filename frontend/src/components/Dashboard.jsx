@@ -24,6 +24,12 @@ export default function Dashboard({ user, setPage, setToast }) {
   const [savingPrice, setSavingPrice]     = useState(false);
   const [priceError, setPriceError]       = useState("");
 
+  // "Godziny otwarcia" modal
+  const [hoursModal, setHoursModal]       = useState(false);
+  const [hoursForm, setHoursForm]         = useState({ openFrom: "", openTo: "" });
+  const [savingHours, setSavingHours]     = useState(false);
+  const [hoursError, setHoursError]       = useState("");
+
   useEffect(() => {
     let active = true;
     if (!user?.customerId) { setLoading(false); return; }
@@ -75,7 +81,7 @@ export default function Dashboard({ user, setPage, setToast }) {
     setSplitError("");
     setSavingSplit(true);
     try {
-      await updateParkingLotConfig(lotId, {
+      await updateParkingLotConfig(lotId, user.customerId, {
         placesCount: split.total,
         reservablePlacesCount: split.reservable,
       });
@@ -85,6 +91,41 @@ export default function Dashboard({ user, setPage, setToast }) {
       setSplitError(err.message || "Nie udało się zapisać podziału.");
     } finally {
       setSavingSplit(false);
+    }
+  };
+
+  const currentLot = lots.find((l) => (l.id ?? l.parkingLotId) === lotId);
+
+  const handleOpenHoursModal = () => {
+    setHoursForm({
+      openFrom: currentLot?.openFrom || "",
+      openTo: currentLot?.openTo || "",
+    });
+    setHoursError("");
+    setHoursModal(true);
+  };
+
+  const handleSaveHours = async () => {
+    const { openFrom, openTo } = hoursForm;
+    if ((openFrom && !openTo) || (!openFrom && openTo)) {
+      setHoursError("Podaj obie godziny albo zostaw oba pola puste (czynny całą dobę).");
+      return;
+    }
+    setSavingHours(true);
+    setHoursError("");
+    try {
+      await updateParkingLotConfig(lotId, user.customerId, {
+        openFrom: openFrom || "",
+        openTo: openTo || "",
+      });
+      const data = await fetchMyParkingLots(user.customerId);
+      setLots(data);
+      setHoursModal(false);
+      setToast(openFrom ? `Godziny otwarcia: ${openFrom}–${openTo}` : "Parking czynny całą dobę.");
+    } catch (err) {
+      setHoursError(err.message || "Nie udało się zapisać godzin otwarcia.");
+    } finally {
+      setSavingHours(false);
     }
   };
 
@@ -103,7 +144,7 @@ export default function Dashboard({ user, setPage, setToast }) {
     setSavingPrice(true);
     setPriceError("");
     try {
-      await updateParkingLotPrice(lotId, val.toFixed(2));
+      await updateParkingLotPrice(lotId, user.customerId, val.toFixed(2));
       await refreshStats();
       setPriceModal(false);
       setToast(`Cena zaktualizowana: ${val.toFixed(2)} zł/h`);
@@ -135,8 +176,10 @@ export default function Dashboard({ user, setPage, setToast }) {
     });
   }, [stats]);
   const totalWeekRevenue = revenueChartData.reduce((sum, p) => sum + p.value, 0);
-  const occupancy = stats && stats.placesCount > 0
-    ? Math.round((stats.activeReservationsCount / stats.placesCount) * 100)
+  // Obłożenie liczone względem puli rezerwowanej online — rezerwacje z aplikacji
+  // nie zajmują miejsc walk-in, więc dzielenie przez placesCount zaniżało wynik.
+  const occupancy = stats && stats.reservablePlacesCount > 0
+    ? Math.min(100, Math.round((stats.activeReservationsCount / stats.reservablePlacesCount) * 100))
     : 0;
 
   if (loading) return (
@@ -195,7 +238,7 @@ export default function Dashboard({ user, setPage, setToast }) {
         <div className="d-stat">
           <div className="d-stat-l">Obłożenie (aktywne)</div>
           <div className="d-stat-v">{occupancy}%</div>
-          <div className="d-stat-c">{stats.activeReservationsCount} z {stats.placesCount} miejsc</div>
+          <div className="d-stat-c">{stats.activeReservationsCount} z {stats.reservablePlacesCount} miejsc online</div>
         </div>
         <div className="d-stat">
           <div className="d-stat-l">Przychód — bieżący miesiąc</div>
@@ -369,11 +412,62 @@ export default function Dashboard({ user, setPage, setToast }) {
               </div>
             )}
 
-            <button className="qa-item" onClick={() => setToast("Godziny otwarcia — brak w obecnej wersji DB")}>
+            <button className="qa-item" onClick={handleOpenHoursModal}>
               <div className="qa-item-ic"><I.Clock /></div>
-              <span style={{ flex: 1 }}>Godziny otwarcia</span>
+              <span style={{ flex: 1 }}>
+                Godziny otwarcia
+                {currentLot?.openFrom && currentLot?.openTo && (
+                  <small style={{ display: "block", fontSize: 11, color: "var(--text3)" }}>
+                    {currentLot.openFrom}–{currentLot.openTo}
+                  </small>
+                )}
+              </span>
               <I.Chev />
             </button>
+
+            {hoursModal && (
+              <div className="qa-inline">
+                <div className="fr" style={{ marginTop: 8 }}>
+                  <div className="fg">
+                    <label className="fl">Otwarcie</label>
+                    <input
+                      className="fi"
+                      type="time"
+                      value={hoursForm.openFrom}
+                      onChange={(e) => { setHoursForm({ ...hoursForm, openFrom: e.target.value }); setHoursError(""); }}
+                    />
+                  </div>
+                  <div className="fg">
+                    <label className="fl">Zamknięcie</label>
+                    <input
+                      className="fi"
+                      type="time"
+                      value={hoursForm.openTo}
+                      onChange={(e) => { setHoursForm({ ...hoursForm, openTo: e.target.value }); setHoursError(""); }}
+                    />
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text3)", margin: "6px 0 0" }}>
+                  Puste pola = parking czynny całą dobę.
+                </p>
+                {hoursError && (
+                  <div className="auth-error" style={{ margin: "8px 0" }}>
+                    <I.Alert /> {hoursError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button className="btn btn-a btn-sm" onClick={handleSaveHours} disabled={savingHours}>
+                    {savingHours ? "Zapisywanie…" : "Zapisz"}
+                  </button>
+                  <button className="btn btn-o btn-sm" onClick={() => { setHoursForm({ openFrom: "", openTo: "" }); setHoursError(""); }}>
+                    Całą dobę
+                  </button>
+                  <button className="btn btn-o btn-sm" onClick={() => setHoursModal(false)}>
+                    Anuluj
+                  </button>
+                </div>
+              </div>
+            )}
             <button className="qa-item" onClick={() => setToast("Eksport PDF — wkrótce")}>
               <div className="qa-item-ic"><I.Download /></div>
               <span style={{ flex: 1 }}>Raport PDF</span>

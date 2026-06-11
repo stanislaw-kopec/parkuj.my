@@ -61,17 +61,17 @@ export function adminLogin(payload) {
   return apiCall("/api/admin/auth/login", { method: "POST", body: JSON.stringify(payload) });
 }
 
-export function fetchAllCustomers() {
-  return apiCall("/api/admin/customers");
+export function fetchAllCustomers(adminId) {
+  return apiCall(`/api/admin/customers?adminId=${adminId}`);
 }
 
-export async function fetchAllReservations() {
-  const data = await apiCall("/api/admin/reservations");
+export async function fetchAllReservations(adminId) {
+  const data = await apiCall(`/api/admin/reservations?adminId=${adminId}`);
   return Array.isArray(data) ? data.map(mapReservation) : [];
 }
 
-export function fetchAllIncidents() {
-  return apiCall("/api/admin/incidents");
+export function fetchAllIncidents(adminId) {
+  return apiCall(`/api/admin/incidents?adminId=${adminId}`);
 }
 
 export function createIncident(adminId, payload) {
@@ -81,8 +81,8 @@ export function createIncident(adminId, payload) {
   });
 }
 
-export function updateIncidentStatus(incidentId, status) {
-  return apiCall(`/api/admin/incidents/${incidentId}/status?status=${status}`, {
+export function updateIncidentStatus(incidentId, status, adminId) {
+  return apiCall(`/api/admin/incidents/${incidentId}/status?status=${status}&adminId=${adminId}`, {
     method: "PATCH",
   });
 }
@@ -91,8 +91,8 @@ export function fetchParkingLotStats(lotId) {
   return apiCall(`/api/parking-lots/${lotId}/stats`);
 }
 
-export function updateParkingLotConfig(lotId, payload) {
-  return apiCall(`/api/parking-lots/${lotId}/config`, {
+export function updateParkingLotConfig(lotId, customerId, payload) {
+  return apiCall(`/api/parking-lots/${lotId}/config?customerId=${customerId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -118,13 +118,14 @@ export function fetchStatsOverview() {
 }
 
 // Potwierdzenie rezerwacji + zapis płatności (status → CONFIRMED).
-export async function confirmReservation(reservationId, paymentMethod, providerReference) {
+// Backend wymaga customerId — potwierdzić może tylko właściciel rezerwacji.
+export async function confirmReservation(reservationId, customerId, paymentMethod, providerReference) {
   const params = new URLSearchParams();
+  params.set("customerId", customerId);
   if (paymentMethod) params.set("paymentMethod", paymentMethod);
   if (providerReference) params.set("providerReference", providerReference);
-  const qs = params.toString();
   const data = await apiCall(
-    `/api/reservations/${reservationId}/confirm${qs ? `?${qs}` : ""}`,
+    `/api/reservations/${reservationId}/confirm?${params.toString()}`,
     { method: "POST" }
   );
   return mapReservation(data);
@@ -174,6 +175,10 @@ export async function setPrimaryVehicle(vehicleId, customerId) {
 // Backend zwraca ReservationResponseDTO z ISO startAt/endAt;
 // UI pracuje na osobnym date / time / status (skompresowanym do 3 grup).
 const ACTIVE_STATUSES = new Set(["PENDING", "CONFIRMED", "ACTIVE"]);
+// Data z lokalnych komponentów — toISOString() konwertuje na UTC i dla godzin
+// porannych (np. start 01:00 przy UTC+2) przesuwała datę o dzień wstecz.
+const localDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const mapReservation = (r) => {
   const start = r.startAt ? new Date(r.startAt) : null;
   const end = r.endAt ? new Date(r.endAt) : null;
@@ -188,7 +193,7 @@ const mapReservation = (r) => {
     address: r.parkingLotAddress,
     startAt: r.startAt,
     endAt: r.endAt,
-    date: start ? start.toISOString().slice(0, 10) : "",
+    date: start ? localDate(start) : "",
     time: start && end ? `${hh(start)}–${hh(end)}` : "",
     plate: r.plateNumber || "—",
     price: r.priceEstimated != null ? Number(r.priceEstimated).toFixed(2) : "0.00",
@@ -220,12 +225,15 @@ export function fetchParkingLotPrice(lotId, from, to) {
   return apiCall(`/api/parking-lots/${lotId}/price?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
 }
 
-export function updateParkingLotPrice(lotId, newPrice) {
-  return apiCall(`/api/parking-lots/${lotId}/price?newPrice=${encodeURIComponent(newPrice)}`, { method: "PATCH" });
+export function updateParkingLotPrice(lotId, customerId, newPrice) {
+  return apiCall(
+    `/api/parking-lots/${lotId}/price?customerId=${customerId}&newPrice=${encodeURIComponent(newPrice)}`,
+    { method: "PATCH" }
+  );
 }
 
-export function fetchAdminStats() {
-  return apiCall("/api/stats/admin");
+export function fetchAdminStats(adminId) {
+  return apiCall(`/api/stats/admin?adminId=${adminId}`);
 }
 
 export function fetchCustomerStats(customerId) {

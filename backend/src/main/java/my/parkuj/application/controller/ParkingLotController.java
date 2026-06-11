@@ -80,21 +80,24 @@ public class ParkingLotController {
     }
 
     // Zmiana ceny godzinowej (append-only: tworzy nowy PricingPlan, zamyka poprzedni).
+    // customerId musi być właścicielem parkingu.
     @PatchMapping("/{id}/price")
     public ParkingLotDTO updatePrice(
         @PathVariable Integer id,
+        @RequestParam Integer customerId,
         @RequestParam BigDecimal newPrice
     ) {
-        return parkingLotService.updatePrice(id, newPrice);
+        return parkingLotService.updatePrice(id, customerId, newPrice);
     }
 
-    // US-A05 — zmiana podziału miejsc (ogółem vs rezerwowane online).
+    // US-A05 — zmiana podziału miejsc i godzin otwarcia. customerId musi być właścicielem.
     @PatchMapping("/{id}/config")
     public ParkingLotDTO updateConfig(
         @PathVariable Integer id,
+        @RequestParam Integer customerId,
         @RequestBody ParkingLotConfigDTO config
     ) {
-        return parkingLotService.updateConfig(id, config);
+        return parkingLotService.updateConfig(id, customerId, config);
     }
 }
 

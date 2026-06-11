@@ -51,20 +51,39 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
       setSubmitError("Musisz być zalogowany, żeby zarejestrować parking.");
       return;
     }
+    // Walidacja przed wysłaniem — wcześniej fallbacki ("Parking", "ul. Przykładowa 10")
+    // maskowały puste pola i do bazy trafiały dane-wydmuszki.
+    if (!form.name.trim()) {
+      setSubmitError("Podaj nazwę parkingu (krok 1).");
+      return;
+    }
+    if (!form.address.trim()) {
+      setSubmitError("Podaj adres parkingu (krok 1).");
+      return;
+    }
+    const price = Number(form.price);
+    if (!Number.isFinite(price) || price < 0 || price > 9999.99) {
+      setSubmitError("Cena musi być liczbą z zakresu 0–9999.99 zł/h.");
+      return;
+    }
+    if ((Number(form.spots) || 0) < 1) {
+      setSubmitError("Parking musi mieć co najmniej 1 miejsce (krok 1).");
+      return;
+    }
     setSubmitting(true);
     setSubmitError("");
     try {
       const coords = randomWarsawCoords();
       const lot = await createParkingLot({
         ownerCustomerId: user.customerId,
-        name: form.name.trim() || "Parking",
-        address: form.address.trim() || "ul. Przykładowa 10",
+        name: form.name.trim(),
+        address: form.address.trim(),
         city: form.city.trim() || "Warszawa",
         latitude: coords.lat,
         longitude: coords.lng,
         placesCount: Number(form.spots) || 0,
         reservablePlacesCount: Number(form.reservableSpots) || 0,
-        pricePerHour: Number(form.price) || 0,
+        pricePerHour: Math.round(price * 100) / 100,
         openFrom: form.openFrom || null,
         openTo: form.openTo || null,
       });
@@ -274,7 +293,15 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             <p className="desc">Cena za godzinę i opcje automatyki</p>
             <div className="fg">
               <label className="fl">Cena / godzinę (zł)</label>
-              <input className="fi" type="number" value={form.price} onChange={set("price")} />
+              <input
+                className="fi"
+                type="number"
+                min="0"
+                max="9999.99"
+                step="0.01"
+                value={form.price}
+                onChange={set("price")}
+              />
             </div>
             <div className="fg">
               <label className="fl">Automatyczny szlaban (ANPR)</label>

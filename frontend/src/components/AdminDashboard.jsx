@@ -56,26 +56,31 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
   });
   const [incidentError, setIncidentError] = useState("");
   const [creatingIncident, setCreatingIncident] = useState(false);
+  const [plateFilter, setPlateFilter] = useState("");
 
-  const refresh = async () => {
-    setLoading(true);
+  const refresh = async (silent = false) => {
+    if (!admin?.adminUserId) return;
+    if (!silent) setLoading(true);
     try {
       const [c, r, i, s] = await Promise.all([
-        fetchAllCustomers(),
-        fetchAllReservations(),
-        fetchAllIncidents(),
-        fetchAdminStats().catch(() => null),
+        fetchAllCustomers(admin.adminUserId),
+        fetchAllReservations(admin.adminUserId),
+        fetchAllIncidents(admin.adminUserId),
+        fetchAdminStats(admin.adminUserId).catch(() => null),
       ]);
       setCustomers(c || []);
       setReservations(r || []);
       setIncidents(i || []);
       setAdminStats(s);
-    } catch {
-      setCustomers([]);
-      setReservations([]);
-      setIncidents([]);
+    } catch (err) {
+      if (!silent) {
+        setToast(err.message || "Nie udało się wczytać danych panelu.");
+        setCustomers([]);
+        setReservations([]);
+        setIncidents([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -101,7 +106,7 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
 
   const handleChangeStatus = async (id, status) => {
     try {
-      await updateIncidentStatus(id, status);
+      await updateIncidentStatus(id, status, admin.adminUserId);
       await refresh();
       setToast("Status incydentu zaktualizowany.");
     } catch (err) {
@@ -109,7 +114,12 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  // US-A02: auto-odświeżanie widoku co 30 sekund (cicho, bez spinnera).
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(() => refresh(true), 30_000);
+    return () => clearInterval(interval);
+  }, [admin?.adminUserId]);
 
   const logout = () => {
     localStorage.removeItem("admin");
@@ -187,6 +197,15 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
 
       {!loading && tab === "reservations" && (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: 12, borderBottom: "1px solid var(--border)" }}>
+            <input
+              className="fi"
+              style={{ maxWidth: 280, fontFamily: "'Space Mono',monospace" }}
+              placeholder="Filtruj po tablicy…"
+              value={plateFilter}
+              onChange={(e) => setPlateFilter(e.target.value.toUpperCase())}
+            />
+          </div>
           {reservations.length === 0 ? (
             <div className="empty"><p>Brak rezerwacji w systemie.</p></div>
           ) : (
@@ -202,7 +221,9 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
                 </tr>
               </thead>
               <tbody>
-                {reservations.map((r) => {
+                {reservations
+                  .filter((r) => !plateFilter || (r.plate || "").toUpperCase().includes(plateFilter.trim()))
+                  .map((r) => {
                   const pill = STATUS_PILL[r.backendStatus] || { label: r.backendStatus, color: "#94a3b8" };
                   return (
                     <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
@@ -317,7 +338,14 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
                             onChange={(e) => handleChangeStatus(inc.incidentReportId, e.target.value)}
                           >
                             {Object.entries(INCIDENT_STATUS).map(([key, val]) => (
-                              <option key={key} value={key}>{val.label}</option>
+                              <option
+                                key={key}
+                                value={key}
+                                disabled={key === "RESOLVED" && admin?.role !== "SUPERADMIN"}
+                              >
+                                {val.label}
+                                {key === "RESOLVED" && admin?.role !== "SUPERADMIN" ? " (tylko SUPERADMIN)" : ""}
+                              </option>
                             ))}
                           </select>
                         </td>

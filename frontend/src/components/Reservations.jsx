@@ -51,6 +51,11 @@ export default function Reservations({ user, setPage, setToast }) {
     const r = reservationToCancel;
     if (!r) return;
     if (cancellingId) return;
+    if (!user?.customerId) {
+      setReservationToCancel(null);
+      setToast("Sesja wygasła — zaloguj się ponownie.");
+      return;
+    }
     const startDate = r.startAt ? new Date(r.startAt) : null;
     if (startDate && startDate - new Date() < 30 * 60 * 1000) {
       setReservationToCancel(null);

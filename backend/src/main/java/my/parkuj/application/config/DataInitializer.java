@@ -89,12 +89,23 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedDefaultAdmin() {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
         AdminUser admin = new AdminUser();
         admin.setEmail("admin@parkuj.my");
-        admin.setPasswordHash(new BCryptPasswordEncoder().encode("admin123"));
+        admin.setPasswordHash(encoder.encode("admin123"));
         admin.setRole(AdminRole.SUPERADMIN);
         admin.setStatus("ACTIVE");
         adminUserRepository.save(admin);
+
+        // Konto z niższą rolą — do pokazania różnicy uprawnień
+        // (OPERATOR nie może zamykać incydentów).
+        AdminUser operator = new AdminUser();
+        operator.setEmail("operator@parkuj.my");
+        operator.setPasswordHash(encoder.encode("operator123"));
+        operator.setRole(AdminRole.OPERATOR);
+        operator.setStatus("ACTIVE");
+        adminUserRepository.save(operator);
     }
 
     private Customer seedCustomerWithVehicle() {

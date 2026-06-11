@@ -106,10 +106,12 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hasło musi mieć co najmniej 6 znaków.");
         }
         if (!isBlank(request.getPlate())) {
-            String plate = request.getPlate().trim().replaceAll("\\s+", "");
-            if (plate.length() < 5 || plate.length() > 7) {
+            // Ta sama reguła co w VehicleService i ReservationService — wcześniej rejestracja
+            // wymagała 5–7 znaków, a reszta systemu 2–10, co dawało sprzeczne komunikaty.
+            String plate = request.getPlate().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+            if (!plate.matches("[A-Z0-9]{2,10}")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Tablica rejestracyjna musi mieć od 5 do 7 znaków.");
+                    "Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 znaków alfanumerycznych.");
             }
         }
     }

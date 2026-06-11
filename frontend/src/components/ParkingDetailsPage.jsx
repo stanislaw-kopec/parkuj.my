@@ -101,7 +101,7 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
           <div className="parking-hero-meta">
             {parking.rating && <span><I.Star /> {parking.rating}</span>}
             <span>{parking.price ?? Number(parking.pricePerHour ?? 0)} zł/h</span>
-            <span>{totalSpots} miejsc</span>
+            <span>{parking.spots ?? 0} miejsc</span>
           </div>
         </div>
         <div className="parking-mini-map">

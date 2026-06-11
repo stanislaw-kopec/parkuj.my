@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -125,9 +126,17 @@ public class ParkingLotService {
         if (price.signum() < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena nie może być ujemna.");
         }
+        if (price.compareTo(new BigDecimal("9999.99")) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena nie może przekraczać 9999.99 zł/h.");
+        }
+
+        lot.setOpenFrom(parseTime(request.getOpenFrom()));
+        lot.setOpenTo(parseTime(request.getOpenTo()));
+        lot = parkingLotRepository.save(lot);
+
         PricingPlan plan = new PricingPlan();
         plan.setParkingLot(lot);
-        plan.setPricePerHour(price);
+        plan.setPricePerHour(price.setScale(2, RoundingMode.HALF_UP));
         plan.setCurrency("PLN");
         plan.setValidFrom(LocalDateTime.now());
         pricingPlanRepository.save(plan);
@@ -171,6 +180,9 @@ public class ParkingLotService {
     public ParkingLotDTO updatePrice(Integer parkingLotId, BigDecimal newPrice) {
         if (newPrice == null || newPrice.signum() < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena musi być liczbą nieujemną.");
+        }
+        if (newPrice.compareTo(new BigDecimal("9999.99")) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cena nie może przekraczać 9999.99 zł/h.");
         }
         ParkingLot lot = findParkingLot(parkingLotId);
         pricingPlanRepository
@@ -315,7 +327,14 @@ public class ParkingLotService {
             dto.setPricePerHour(activePlan.getPricePerHour());
             dto.setCurrency(activePlan.getCurrency());
         }
+        if (parkingLot.getOpenFrom() != null) dto.setOpenFrom(parkingLot.getOpenFrom().toString());
+        if (parkingLot.getOpenTo() != null) dto.setOpenTo(parkingLot.getOpenTo().toString());
         return dto;
+    }
+
+    private LocalTime parseTime(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try { return LocalTime.parse(raw.trim()); } catch (Exception e) { return null; }
     }
 
     private void validateRange(LocalDateTime from, LocalDateTime to) {

@@ -93,6 +93,12 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
     return real?.availableSpots ?? p.available ?? 0;
   };
 
+  // Sprawdź czy wybrany przedział mieści się w godzinach otwarcia parkingu.
+  const isWithinOpeningHours = (p) => {
+    if (!p.openFrom || !p.openTo || !timeFrom || !timeTo) return true;
+    return timeFrom >= p.openFrom && timeTo <= p.openTo;
+  };
+
   const filteredParkings = useMemo(() => {
     const query = search.trim().toLowerCase();
     return parkings.filter((p) => {
@@ -101,9 +107,10 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
       // dopóki request jest w locie, pokazujemy wszystkie żeby uniknąć błyskania.
       const real = availabilityMap[p.id];
       const hasAvailability = real ? real.available : true;
-      return matchesQuery && hasAvailability;
+      const withinHours = hours > 0 ? isWithinOpeningHours(p) : true;
+      return matchesQuery && hasAvailability && withinHours;
     });
-  }, [parkings, search, availabilityMap]);
+  }, [parkings, search, availabilityMap, timeFrom, timeTo, hours]);
 
   const parking = parkings.find((p) => p.id === selectedId);
   const savedVehicles = vehicles.length ? vehicles : [];
@@ -166,6 +173,10 @@ export default function ReservePage({ user, vehicles = [], setPage, setToast }) 
       const trimmed = plate.trim().replace(/\s+/g, "").toUpperCase();
       if (!trimmed) {
         setSubmitError("Podaj numer rejestracyjny.");
+        return;
+      }
+      if (!/^[A-Z0-9]{2,10}$/.test(trimmed)) {
+        setSubmitError("Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 liter i cyfr.");
         return;
       }
       payload.plateNumber = trimmed;

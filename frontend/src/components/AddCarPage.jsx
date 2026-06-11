@@ -36,6 +36,11 @@ export default function AddCarPage({ user, vehicles, setVehicles, setPage, setTo
       setError("Podaj numer rejestracyjny pojazdu.");
       return;
     }
+    const plateNormalized = plate.replace(/\s/g, "");
+    if (!/^[A-Z0-9]{2,10}$/.test(plateNormalized)) {
+      setError("Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 liter i cyfr, bez znaków specjalnych.");
+      return;
+    }
     if (!user?.customerId) {
       setError("Brak danych zalogowanego użytkownika.");
       return;

@@ -10,7 +10,7 @@ export default function Landing({ setPage }) {
       <h1>Zarezerwuj miejsce parkingowe w 10 sekund</h1>
 
       <p>
-        Płać online, wjeżdżaj bez zatrzymywania. Twój numer rejestracyjny to Twój bilet wstępu.
+        Zarezerwuj miejsce, zapłać online i wjeżdżaj bez zatrzymywania.
       </p>
 
       <div className="land-btns">
@@ -25,24 +25,18 @@ export default function Landing({ setPage }) {
       <div className="land-grid">
         <div className="land-feat">
           <div className="land-feat-ic">
-            <I.Scan />
+            <I.Cal />
           </div>
-          <h3>Rozpoznawanie tablic</h3>
-          <p>Szlaban otwiera się automatycznie po skanowaniu rejestracji</p>
+          <h3>Rezerwacja online</h3>
+          <p>Zarezerwuj miejsce z wyprzedzeniem w kilka sekund</p>
         </div>
         <div className="land-feat">
           <div className="land-feat-ic">
             <I.Zap />
           </div>
-          <h3>Płatność online</h3>
-          <p>Zapłać z góry przez aplikację, zero gotówki</p>
+          <h3>Płatność z góry</h3>
+          <p>Zapłać przez aplikację i jedź bez stresu</p>
         </div>
-      </div>
-
-      <div className="land-bottom">
-        <span><span className="land-num">1 250+</span> miejsc</span>
-        <span><span className="land-num">15</span> parkingów</span>
-        <span><span className="land-num">24/7</span> dostęp</span>
       </div>
     </div>
   );

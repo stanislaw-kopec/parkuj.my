@@ -135,6 +135,11 @@ public class VehicleService {
         if (request.getPlateNumber() == null || request.getPlateNumber().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj numer rejestracyjny.");
         }
+        String normalized = request.getPlateNumber().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+        if (!normalized.matches("[A-Z0-9]{2,10}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 znaków alfanumerycznych (litery i cyfry).");
+        }
     }
 
     private void clearPrimaryVehicle(Integer customerId) {

@@ -14,6 +14,8 @@ const mapLotToCard = (lot, index) => ({
     lot.latitude != null && lot.longitude != null
       ? [Number(lot.latitude), Number(lot.longitude)]
       : [52.2297, 21.0122],
+  openFrom: lot.openFrom ?? null,
+  openTo: lot.openTo ?? null,
 });
 
 export async function fetchParkingLots() {

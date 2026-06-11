@@ -39,4 +39,13 @@ public class ParkingLotCreateDTO {
 
     public BigDecimal getPricePerHour() { return pricePerHour; }
     public void setPricePerHour(BigDecimal pricePerHour) { this.pricePerHour = pricePerHour; }
+
+    private String openFrom;
+    private String openTo;
+
+    public String getOpenFrom() { return openFrom; }
+    public void setOpenFrom(String openFrom) { this.openFrom = openFrom; }
+
+    public String getOpenTo() { return openTo; }
+    public void setOpenTo(String openTo) { this.openTo = openTo; }
 }

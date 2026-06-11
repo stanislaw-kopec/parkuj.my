@@ -6,14 +6,6 @@ import {
 import * as I from "../icons";
 import { fetchMyParkingLots, fetchParkingLotStats, updateParkingLotConfig, updateParkingLotPrice } from "../data/api";
 
-const ENTRIES = [
-  { plate: "WA 12345", time: "14:32", type: "in",  status: "Rezerwacja OK" },
-  { plate: "WE 99887", time: "14:18", type: "in",  status: "Rezerwacja OK" },
-  { plate: "WB 55443", time: "14:05", type: "out", status: "Wyjazd — 4h 12min" },
-  { plate: "WI 77221", time: "13:42", type: "in",  status: "Ręczne wpuszczenie" },
-  { plate: "WA 33210", time: "13:15", type: "out", status: "Wyjazd — 2h 05min" },
-];
-
 const DAY_LABELS = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
 
 export default function Dashboard({ user, setPage, setToast }) {
@@ -251,33 +243,13 @@ export default function Dashboard({ user, setPage, setToast }) {
           </div>
 
           <div className="d-sec">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h3 style={{ margin: 0 }}>Ostatnie wjazdy / wyjazdy</h3>
-              <span style={{ fontSize: 11, color: "var(--text3)" }}>Demo — wymaga OCR</span>
+            <h3>Wjazdy / wyjazdy</h3>
+            <div className="empty" style={{ padding: "32px 0" }}>
+              <div className="empty-ic"><I.Car /></div>
+              <p style={{ fontSize: 13, color: "var(--text3)", margin: 0 }}>
+                Historia wjazdów i wyjazdów będzie dostępna po integracji z czytnikiem tablic (ANPR).
+              </p>
             </div>
-            <table className="dtbl">
-              <thead>
-                <tr><th>Tablica</th><th>Czas</th><th>Typ</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {ENTRIES.map((e, i) => (
-                  <tr key={i}>
-                    <td style={{ fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{e.plate}</td>
-                    <td>{e.time}</td>
-                    <td>
-                      <span style={{
-                        padding: "2px 10px", borderRadius: 10, fontSize: 11, fontWeight: 600,
-                        background: e.type === "in" ? "var(--success-bg)" : "var(--bg3)",
-                        color: e.type === "in" ? "var(--success)" : "var(--text3)",
-                      }}>
-                        {e.type === "in" ? "Wjazd" : "Wyjazd"}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 12, color: "var(--text2)" }}>{e.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
 
           <div className="d-sec">

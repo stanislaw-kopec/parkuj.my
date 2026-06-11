@@ -14,6 +14,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,6 +46,13 @@ public class ParkingLot {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+
+    // Godziny otwarcia — null oznacza brak ograniczeń (czynny całą dobę).
+    @Column(name = "open_from")
+    private LocalTime openFrom;
+
+    @Column(name = "open_to")
+    private LocalTime openTo;
 
     // Właściciel parkingu — klient, który zarejestrował obiekt przez wizard /join.
     // Nullable: parkingi zasiane przez DataInitializer nie mają właściciela.
@@ -99,6 +107,12 @@ public class ParkingLot {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public LocalTime getOpenFrom() { return openFrom; }
+    public void setOpenFrom(LocalTime openFrom) { this.openFrom = openFrom; }
+
+    public LocalTime getOpenTo() { return openTo; }
+    public void setOpenTo(LocalTime openTo) { this.openTo = openTo; }
 
     public Customer getOwner() { return owner; }
     public void setOwner(Customer owner) { this.owner = owner; }

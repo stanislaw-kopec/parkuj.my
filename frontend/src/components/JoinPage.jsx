@@ -33,6 +33,8 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
     type: "indoor",
     barrier: true,
     price: "6",
+    openFrom: "06:00",
+    openTo: "22:00",
   });
 
   const handleStart = () => {
@@ -63,6 +65,8 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
         placesCount: Number(form.spots) || 0,
         reservablePlacesCount: Number(form.reservableSpots) || 0,
         pricePerHour: Number(form.price) || 0,
+        openFrom: form.openFrom || null,
+        openTo: form.openTo || null,
       });
       setCreatedLot(lot);
       setRole("owner");
@@ -292,8 +296,8 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             <div className="fg">
               <label className="fl">Godziny otwarcia</label>
               <div className="fr">
-                <input className="fi" type="time" defaultValue="06:00" />
-                <input className="fi" type="time" defaultValue="22:00" />
+                <input className="fi" type="time" value={form.openFrom} onChange={set("openFrom")} />
+                <input className="fi" type="time" value={form.openTo} onChange={set("openTo")} />
               </div>
             </div>
             {submitError && (

@@ -80,6 +80,8 @@ public class ReservationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parking nie przyjmuje obecnie rezerwacji.");
         }
 
+        validateOpeningHours(parkingLot, request.getStartAt(), request.getEndAt());
+
         PricingPlan pricingPlan = pricingPlanRepository
             .findFirstByParkingLotParkingLotIdAndValidToIsNullOrderByValidFromDesc(parkingLot.getParkingLotId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parking nie ma aktywnego cennika."));
@@ -277,6 +279,24 @@ public class ReservationService {
         }
         if (request.getStartAt().isBefore(LocalDateTime.now().minusMinutes(1))) {
             throw badRequest("Nie można utworzyć rezerwacji w przeszłości.");
+        }
+        if (request.getVehicleId() == null && request.getPlateNumber() != null) {
+            String normalizedPlate = request.getPlateNumber().trim().replaceAll("\\s+", "").toUpperCase();
+            if (!normalizedPlate.matches("[A-Z0-9]{2,10}")) {
+                throw badRequest("Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 znaków alfanumerycznych.");
+            }
+        }
+    }
+
+    private void validateOpeningHours(ParkingLot parkingLot, LocalDateTime startAt, LocalDateTime endAt) {
+        if (parkingLot.getOpenFrom() == null || parkingLot.getOpenTo() == null) return;
+        java.time.LocalTime from = parkingLot.getOpenFrom();
+        java.time.LocalTime to   = parkingLot.getOpenTo();
+        java.time.LocalTime resStart = startAt.toLocalTime();
+        java.time.LocalTime resEnd   = endAt.toLocalTime();
+        if (resStart.isBefore(from) || resEnd.isAfter(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                String.format("Parking jest czynny tylko w godzinach %s–%s.", from, to));
         }
     }
 

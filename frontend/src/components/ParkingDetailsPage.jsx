@@ -68,9 +68,12 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
   );
 
   const coords = parking.coords || [52.2297, 21.0122];
-  const availSpots = avail?.availableSpots ?? parking.available ?? 0;
-  const totalSpots = parking.spots ?? 0;
-  const occupancyPct = totalSpots > 0 ? Math.round(((totalSpots - availSpots) / totalSpots) * 100) : 0;
+  const availSpots = avail?.availableSpots ?? null;
+  const totalReservable = avail?.totalReservableSpots ?? parking.available ?? 0;
+  const occupiedSpots = avail?.occupiedReservableSpots ?? null;
+  const occupancyPct = avail && totalReservable > 0
+    ? Math.round(((totalReservable - (avail.availableSpots ?? 0)) / totalReservable) * 100)
+    : null;
   const estimatedPrice = priceEst?.estimatedPrice != null
     ? Number(priceEst.estimatedPrice).toFixed(2)
     : null;
@@ -144,13 +147,13 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
       <section className="details-stats">
         <div className="d-stat">
           <div className="d-stat-l">Dostępne miejsca</div>
-          <div className="d-stat-v">{avail?.availableSpots ?? availSpots}</div>
-          <div className="d-stat-c">z {totalSpots} rezerwowanych</div>
+          <div className="d-stat-v">{availSpots !== null ? availSpots : "—"}</div>
+          <div className="d-stat-c">z {totalReservable} rezerwowanych</div>
         </div>
         <div className="d-stat">
           <div className="d-stat-l">Obłożenie</div>
-          <div className="d-stat-v">{occupancyPct}%</div>
-          <div className="d-stat-c up">dla wybranego terminu</div>
+          <div className="d-stat-v">{occupancyPct !== null ? `${occupancyPct}%` : "—"}</div>
+          <div className="d-stat-c up">{avail ? "dla wybranego terminu" : "wybierz termin"}</div>
         </div>
         <div className="d-stat">
           <div className="d-stat-l">Cena szacowana</div>
@@ -191,7 +194,7 @@ export default function ParkingDetailsPage({ parkingId, setPage }) {
             <div><span>Cena godzinowa</span><strong>{parking.price ?? Number(parking.pricePerHour ?? 0)} zł</strong></div>
             <div><span>Szacowany koszt</span><strong>{estimatedPrice ? `${estimatedPrice} zł` : "—"}</strong></div>
             <div><span>Adres</span><strong>{parking.address}</strong></div>
-            <div><span>Rozpoznawanie tablic</span><strong>Aktywne</strong></div>
+            {parking.openFrom && parking.openTo && <div><span>Godziny otwarcia</span><strong>{parking.openFrom}–{parking.openTo}</strong></div>}
           </div>
         </div>
       </section>

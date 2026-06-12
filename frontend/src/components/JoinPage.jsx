@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as I from "../icons";
+import { createParkingLot } from "../data/api";
 
 const STEPS = [
   { label: "Dane",    n: 1 },
@@ -8,8 +9,19 @@ const STEPS = [
   { label: "Gotowe",  n: 4 },
 ];
 
+// Współrzędne losowane raz przy zapisie — w mockupie nie integrujemy
+// geokodera, więc parking ląduje w okolicy centrum Warszawy.
+const randomWarsawCoords = () => ({
+  lat: (52.22 + (Math.random() - 0.5) * 0.06).toFixed(6),
+  lng: (21.00 + (Math.random() - 0.5) * 0.10).toFixed(6),
+});
+
 export default function JoinPage({ user, setUser, setPage, setRole }) {
-  const [wizardStep, setWizardStep] = useState(0);
+  // Zalogowany użytkownik wchodzący na /join chce kreatora, nie ekranu marketingowego.
+  const [wizardStep, setWizardStep] = useState(user ? 1 : 0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [createdLot, setCreatedLot] = useState(null);
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -21,11 +33,68 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
     type: "indoor",
     barrier: true,
     price: "6",
+    openFrom: "06:00",
+    openTo: "22:00",
   });
 
   const handleStart = () => {
-    if (!user) setUser({ name: "Adam Nowak", email: "adam.owner@gmail.com" });
+    // Wymagamy zalogowanego konta — wcześniej był tu mock 'Adam Nowak'.
+    if (!user) {
+      setPage("auth");
+      return;
+    }
     setWizardStep(1);
+  };
+
+  const handleFinish = async () => {
+    if (!user?.customerId) {
+      setSubmitError("Musisz być zalogowany, żeby zarejestrować parking.");
+      return;
+    }
+    // Walidacja przed wysłaniem — wcześniej fallbacki ("Parking", "ul. Przykładowa 10")
+    // maskowały puste pola i do bazy trafiały dane-wydmuszki.
+    if (!form.name.trim()) {
+      setSubmitError("Podaj nazwę parkingu (krok 1).");
+      return;
+    }
+    if (!form.address.trim()) {
+      setSubmitError("Podaj adres parkingu (krok 1).");
+      return;
+    }
+    const price = Number(form.price);
+    if (!Number.isFinite(price) || price < 0 || price > 9999.99) {
+      setSubmitError("Cena musi być liczbą z zakresu 0–9999.99 zł/h.");
+      return;
+    }
+    if ((Number(form.spots) || 0) < 1) {
+      setSubmitError("Parking musi mieć co najmniej 1 miejsce (krok 1).");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const coords = randomWarsawCoords();
+      const lot = await createParkingLot({
+        ownerCustomerId: user.customerId,
+        name: form.name.trim(),
+        address: form.address.trim(),
+        city: form.city.trim() || "Warszawa",
+        latitude: coords.lat,
+        longitude: coords.lng,
+        placesCount: Number(form.spots) || 0,
+        reservablePlacesCount: Number(form.reservableSpots) || 0,
+        pricePerHour: Math.round(price * 100) / 100,
+        openFrom: form.openFrom || null,
+        openTo: form.openTo || null,
+      });
+      setCreatedLot(lot);
+      setRole("owner");
+      setWizardStep(4);
+    } catch (err) {
+      setSubmitError(err.message || "Nie udało się zapisać parkingu.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
@@ -104,12 +173,12 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             className="btn btn-o btn-sm"
             style={{ marginTop: 8 }}
             onClick={() => {
-              setUser({ name: "Adam Nowak", email: "adam.owner@gmail.com" });
+              if (!user) { setPage("auth"); return; }
               setRole("owner");
               setPage("dashboard");
             }}
           >
-            Zaloguj jako właściciel
+            {user ? "Przejdź do panelu właściciela" : "Najpierw się zaloguj"}
           </button>
         </div>
       </div>
@@ -224,7 +293,15 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             <p className="desc">Cena za godzinę i opcje automatyki</p>
             <div className="fg">
               <label className="fl">Cena / godzinę (zł)</label>
-              <input className="fi" type="number" value={form.price} onChange={set("price")} />
+              <input
+                className="fi"
+                type="number"
+                min="0"
+                max="9999.99"
+                step="0.01"
+                value={form.price}
+                onChange={set("price")}
+              />
             </div>
             <div className="fg">
               <label className="fl">Automatyczny szlaban (ANPR)</label>
@@ -246,13 +323,20 @@ export default function JoinPage({ user, setUser, setPage, setRole }) {
             <div className="fg">
               <label className="fl">Godziny otwarcia</label>
               <div className="fr">
-                <input className="fi" type="time" defaultValue="06:00" />
-                <input className="fi" type="time" defaultValue="22:00" />
+                <input className="fi" type="time" value={form.openFrom} onChange={set("openFrom")} />
+                <input className="fi" type="time" value={form.openTo} onChange={set("openTo")} />
               </div>
             </div>
+            {submitError && (
+              <div className="auth-error" style={{ marginBottom: 14 }}>
+                <I.Alert /> {submitError}
+              </div>
+            )}
             <div className="wt-acts">
-              <button className="btn btn-o" onClick={() => setWizardStep(2)}>← Wstecz</button>
-              <button className="btn btn-a" onClick={() => setWizardStep(4)}>Dalej <I.Arr /></button>
+              <button className="btn btn-o" onClick={() => setWizardStep(2)} disabled={submitting}>← Wstecz</button>
+              <button className="btn btn-a" onClick={handleFinish} disabled={submitting}>
+                {submitting ? "Zapisywanie…" : <>Zarejestruj parking <I.Arr /></>}
+              </button>
             </div>
           </div>
         )}

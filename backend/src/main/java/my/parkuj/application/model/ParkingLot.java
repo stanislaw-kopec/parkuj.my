@@ -2,15 +2,19 @@ package my.parkuj.application.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +46,19 @@ public class ParkingLot {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+
+    // Godziny otwarcia — null oznacza brak ograniczeń (czynny całą dobę).
+    @Column(name = "open_from")
+    private LocalTime openFrom;
+
+    @Column(name = "open_to")
+    private LocalTime openTo;
+
+    // Właściciel parkingu — klient, który zarejestrował obiekt przez wizard /join.
+    // Nullable: parkingi zasiane przez DataInitializer nie mają właściciela.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_customer_id")
+    private Customer owner;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -90,6 +107,15 @@ public class ParkingLot {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public LocalTime getOpenFrom() { return openFrom; }
+    public void setOpenFrom(LocalTime openFrom) { this.openFrom = openFrom; }
+
+    public LocalTime getOpenTo() { return openTo; }
+    public void setOpenTo(LocalTime openTo) { this.openTo = openTo; }
+
+    public Customer getOwner() { return owner; }
+    public void setOwner(Customer owner) { this.owner = owner; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

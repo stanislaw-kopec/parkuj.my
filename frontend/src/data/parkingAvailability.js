@@ -1,39 +1,28 @@
-export const calcHours = (from, to) => {
-  const [fH, fM] = from.split(":").map(Number);
-  const [tH, tM] = to.split(":").map(Number);
-  const diff = tH * 60 + tM - (fH * 60 + fM);
-  return Math.max(0, Math.round((diff / 60) * 10) / 10);
+export const MIN_RESERVATION_MINUTES = 30;
+
+const parseTime = (value) => {
+  if (!value || typeof value !== "string") return null;
+  const [hours, minutes] = value.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
 };
 
-export const getParkingAvailability = (parking, date, timeFrom, timeTo) => {
-  if (!parking) return 0;
-
-  const dateSeed = Number(String(date || "").replaceAll("-", "").slice(-4)) || 0;
-  const [fromHour = 0] = String(timeFrom || "00:00").split(":").map(Number);
-  const hours = calcHours(timeFrom || "00:00", timeTo || "00:00");
-  const peakPenalty = fromHour >= 8 && fromHour <= 10 ? 12 : fromHour >= 16 && fromHour <= 18 ? 18 : 0;
-  const durationPenalty = Math.max(0, Math.round((hours - 2) * 3));
-  const datePenalty = (dateSeed + parking.id * 7) % 19;
-
-  return Math.max(0, Math.min(parking.spots, parking.available - peakPenalty - durationPenalty - datePenalty));
+export const calcMinutes = (from, to) => {
+  const start = parseTime(from);
+  const end = parseTime(to);
+  if (start == null || end == null) return 0;
+  return Math.max(0, end - start);
 };
 
-export const getParkingStats = (parking, date, timeFrom, timeTo) => {
-  const available = getParkingAvailability(parking, date, timeFrom, timeTo);
-  const occupied = Math.max(0, parking.spots - available);
-  const occupancy = Math.round((occupied / parking.spots) * 100);
-  const reservable = Math.round(parking.spots * 0.68);
-  const walkIn = parking.spots - reservable;
+// Backend bills minutes / 60, rounded up to 0.01 h.
+export const calcBillableHours = (from, to) =>
+  Math.ceil((calcMinutes(from, to) / 60) * 100) / 100;
 
-  return {
-    available,
-    occupied,
-    occupancy,
-    reservable,
-    walkIn,
-    reservationsToday: Math.max(8, Math.round((parking.spots * occupancy) / 180)),
-    revenueToday: Math.round(parking.price * occupied * 1.7),
-    avgStay: occupancy > 80 ? "3h 10min" : occupancy > 60 ? "2h 35min" : "1h 50min",
-    peak: parking.id === 4 ? "05:00-08:00" : occupancy > 80 ? "16:00-18:00" : "09:00-11:00",
-  };
+export const formatDuration = (minutes) => {
+  if (!minutes || minutes <= 0) return "";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours && rest) return `${hours} h ${rest} min`;
+  if (hours) return `${hours} h`;
+  return `${rest} min`;
 };

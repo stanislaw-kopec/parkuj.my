@@ -22,9 +22,10 @@ public class PaymentController {
     @PostMapping("/reservation/{reservationId}")
     public PaymentDTO payForReservation(
         @PathVariable Integer reservationId,
+        @RequestParam Integer customerId,
         @RequestParam(defaultValue = "BLIK") PaymentMethod method
     ) {
-        return paymentService.payForReservation(reservationId, method);
+        return paymentService.payForReservation(reservationId, customerId, method);
     }
 }
 

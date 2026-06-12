@@ -15,6 +15,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Intege
 
     boolean existsByVehicleVehicleIdAndStatusIn(Integer vehicleId, Collection<ReservationStatus> statuses);
 
+    boolean existsByVehicleVehicleId(Integer vehicleId);
+
+    List<Reservation> findByStatusAndExpiresAtBefore(ReservationStatus status, LocalDateTime now);
+
+    List<Reservation> findByStatusInAndEndAtBefore(Collection<ReservationStatus> statuses, LocalDateTime now);
+
     List<Reservation> findByCustomerCustomerIdOrderByReservedAtDesc(Integer customerId);
 
     @Query("""
@@ -30,5 +36,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, Intege
         @Param("startAt") LocalDateTime startAt,
         @Param("endAt") LocalDateTime endAt,
         @Param("statuses") Collection<ReservationStatus> statuses
+    );
+
+    @Query("""
+        select count(r) from Reservation r
+        where r.parkingLot.parkingLotId = :parkingLotId
+          and r.status in :statuses
+        """)
+    long countByParkingLotAndStatuses(
+        @Param("parkingLotId") Integer parkingLotId,
+        @Param("statuses") Collection<ReservationStatus> statuses
+    );
+
+    List<Reservation> findByParkingLotParkingLotIdAndReservedAtBetween(
+        Integer parkingLotId,
+        LocalDateTime from,
+        LocalDateTime to
     );
 }

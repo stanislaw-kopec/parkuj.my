@@ -4,12 +4,20 @@ import * as I from "../icons";
 export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, role, showMenu, setShowMenu }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const tabs = [
-    { id: "home",         label: "Strona główna",  icon: <I.Home /> },
-    { id: "reserve",      label: "Zarezerwuj",      icon: <I.Cal /> },
-    { id: "reservations", label: "Moje rezerwacje", icon: <I.List /> },
-    { id: "contact",      label: "Kontakt",          icon: <I.Mail /> },
-  ];
+  // Właściciel parkingu nie potrzebuje funkcji klienta (rezerwacja, lista parkingów).
+  const tabs = role === "owner"
+    ? [
+        { id: "dashboard",  label: "Panel zarządzania",    icon: <I.Dash /> },
+        { id: "ownerAdmin", label: "Panel administracyjny", icon: <I.List /> },
+        { id: "join",       label: "Dodaj parking",         icon: <I.Plus /> },
+        { id: "contact",    label: "Kontakt",               icon: <I.Mail /> },
+      ]
+    : [
+        { id: "home",         label: "Strona główna",   icon: <I.Home /> },
+        { id: "reserve",      label: "Zarezerwuj",       icon: <I.Cal /> },
+        { id: "reservations", label: "Moje rezerwacje",  icon: <I.List /> },
+        { id: "contact",      label: "Kontakt",           icon: <I.Mail /> },
+      ];
 
   const navigate = (id, event) => {
     event?.preventDefault();
@@ -22,8 +30,8 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
       <div className="nav-in">
         <a
           className="logo"
-          href={pagePaths[user ? "home" : "landing"]}
-          onClick={(e) => navigate(user ? "home" : "landing", e)}
+          href={pagePaths[user ? (role === "owner" ? "dashboard" : "home") : "landing"]}
+          onClick={(e) => navigate(user ? (role === "owner" ? "dashboard" : "home") : "landing", e)}
         >
           <I.Car />
           <span style={{ marginLeft: 7 }}>parkuj</span>
@@ -43,15 +51,6 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                 {t.icon}{t.label}
               </a>
             ))}
-            {role === "owner" && (
-              <a
-                className={`tab ${page === "dashboard" ? "on" : ""}`}
-                href={pagePaths.dashboard}
-                onClick={(e) => navigate("dashboard", e)}
-              >
-                <I.Dash />Panel zarządzania
-              </a>
-            )}
           </div>
         ) : (
           <div className="tabs">
@@ -72,8 +71,8 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
               >
                 <div className="pill">
-                  <div className="av">{user.name[0]}</div>
-                  <span>{user.name.split(" ")[0]}</span>
+                  <div className="av">{user.name?.[0] ?? "U"}</div>
+                  <span>{user.name?.split(" ")[0] ?? "Konto"}</span>
                 </div>
 
                 {showMenu && (
@@ -87,18 +86,25 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                         </div>
                       )}
                     </div>
-                    <button className="umi" onClick={() => { setShowMenu(false); setPage("user"); }}>
+                    <button className="umi" onClick={() => { setShowMenu(false); setPage(role === "owner" ? "dashboard" : "user"); }}>
                       <I.Home /> Moje konto
                     </button>
                     <button className="umi" onClick={() => { setShowMenu(false); setPage("settings"); }}>
                       <I.Gear /> Ustawienia
                     </button>
-                    <button className="umi" onClick={() => { setShowMenu(false); setPage("addCar"); }}>
-                      <I.Car /> Dodaj pojazd
-                    </button>
+                    {role !== "owner" && (
+                      <>
+                        <button className="umi" onClick={() => { setShowMenu(false); setPage("addCar"); }}>
+                          <I.Car /> Dodaj pojazd
+                        </button>
+                        <button className="umi" onClick={() => { setShowMenu(false); setPage("auth", { ownerRegister: true }); }}>
+                          <I.Dash /> Dołącz z parkingiem
+                        </button>
+                      </>
+                    )}
                     <button
                       className="umi red"
-                      onClick={() => { setUser(null); setRole("customer"); setShowMenu(false); setPage("landing"); }}
+                      onClick={() => { localStorage.removeItem("user"); localStorage.removeItem("role"); setUser(null); setRole("customer"); setShowMenu(false); setPage("landing"); }}
                     >
                       <I.Out /> Wyloguj się
                     </button>
@@ -131,15 +137,6 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                 {t.icon}{t.label}
             </a>
           ))}
-          {role === "owner" && (
-            <a
-              className={`mob-tab ${page === "dashboard" ? "on" : ""}`}
-              href={pagePaths.dashboard}
-              onClick={(e) => navigate("dashboard", e)}
-            >
-              <I.Dash />Panel zarządzania
-            </a>
-          )}
         </div>
       )}
     </nav>

@@ -1,6 +1,7 @@
 package my.parkuj.application.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import my.parkuj.application.model.ParkingLot;
 
 public class ParkingLotDTO {
@@ -16,6 +17,8 @@ public class ParkingLotDTO {
     private String status;
     private BigDecimal pricePerHour;
     private String currency;
+    private String openFrom;
+    private String openTo;
 
     public Integer getId() { return id; }
     public void setId(Integer id) {
@@ -59,6 +62,12 @@ public class ParkingLotDTO {
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
 
+    public String getOpenFrom() { return openFrom; }
+    public void setOpenFrom(String openFrom) { this.openFrom = openFrom; }
+
+    public String getOpenTo() { return openTo; }
+    public void setOpenTo(String openTo) { this.openTo = openTo; }
+
     public static ParkingLotDTO fromEntity(ParkingLot lot) {
         if (lot == null) {
             return null;
@@ -75,6 +84,8 @@ public class ParkingLotDTO {
             dto.setWalkInPlacesCount(Math.max(0, lot.getPlacesCount() - lot.getReservablePlacesCount()));
         }
         dto.setStatus(lot.getStatus());
+        if (lot.getOpenFrom() != null) dto.setOpenFrom(lot.getOpenFrom().toString());
+        if (lot.getOpenTo() != null) dto.setOpenTo(lot.getOpenTo().toString());
         return dto;
     }
 }

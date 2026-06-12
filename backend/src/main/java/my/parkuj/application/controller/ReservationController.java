@@ -47,9 +47,11 @@ public class ReservationController {
     @PostMapping("/{id}/confirm")
     public ReservationResponseDTO confirmReservation(
         @PathVariable Integer id,
-        @RequestParam(required = false) String providerReference
+        @RequestParam Integer customerId,
+        @RequestParam(required = false) String providerReference,
+        @RequestParam(required = false) String paymentMethod
     ) {
-        return reservationService.confirmReservation(id, providerReference);
+        return reservationService.confirmReservation(id, customerId, providerReference, paymentMethod);
     }
 
     @DeleteMapping("/{id}")

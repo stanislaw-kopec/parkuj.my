@@ -8,18 +8,23 @@ import java.time.LocalDateTime;
 import java.util.List;
 import my.parkuj.application.dto.ReservationRequestDTO;
 import my.parkuj.application.dto.ReservationResponseDTO;
+import my.parkuj.application.enums.PaymentMethod;
+import my.parkuj.application.enums.PaymentStatus;
 import my.parkuj.application.enums.ReservationStatus;
 import my.parkuj.application.model.Customer;
 import my.parkuj.application.model.ParkingLot;
+import my.parkuj.application.model.Payment;
 import my.parkuj.application.model.PricingPlan;
 import my.parkuj.application.model.Reservation;
 import my.parkuj.application.model.Vehicle;
 import my.parkuj.application.repository.CustomerRepository;
 import my.parkuj.application.repository.ParkingLotRepository;
+import my.parkuj.application.repository.PaymentRepository;
 import my.parkuj.application.repository.PricingPlanRepository;
 import my.parkuj.application.repository.ReservationRepository;
 import my.parkuj.application.repository.VehicleRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,6 +34,7 @@ public class ReservationService {
 
     private static final String CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 12;
+    private static final long MIN_RESERVATION_MINUTES = 30;
     private static final List<ReservationStatus> BLOCKING_STATUSES = List.of(
         ReservationStatus.PENDING,
         ReservationStatus.CONFIRMED,
@@ -40,6 +46,7 @@ public class ReservationService {
     private final ParkingLotRepository parkingLotRepository;
     private final PricingPlanRepository pricingPlanRepository;
     private final ReservationRepository reservationRepository;
+    private final PaymentRepository paymentRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ReservationService(
@@ -47,13 +54,15 @@ public class ReservationService {
         VehicleRepository vehicleRepository,
         ParkingLotRepository parkingLotRepository,
         PricingPlanRepository pricingPlanRepository,
-        ReservationRepository reservationRepository
+        ReservationRepository reservationRepository,
+        PaymentRepository paymentRepository
     ) {
         this.customerRepository = customerRepository;
         this.vehicleRepository = vehicleRepository;
         this.parkingLotRepository = parkingLotRepository;
         this.pricingPlanRepository = pricingPlanRepository;
         this.reservationRepository = reservationRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     @Transactional
@@ -63,9 +72,7 @@ public class ReservationService {
         Customer customer = customerRepository.findById(request.getCustomerId())
             .orElseThrow(() -> notFound("Nie znaleziono klienta."));
 
-        Vehicle vehicle = vehicleRepository
-            .findByVehicleIdAndCustomerCustomerId(request.getVehicleId(), request.getCustomerId())
-            .orElseThrow(() -> notFound("Nie znaleziono pojazdu przypisanego do tego klienta."));
+        Vehicle vehicle = resolveVehicle(request, customer);
 
         ParkingLot parkingLot = parkingLotRepository.findById(request.getParkingLotId())
             .orElseThrow(() -> notFound("Nie znaleziono parkingu."));
@@ -73,6 +80,8 @@ public class ReservationService {
         if (!"ACTIVE".equalsIgnoreCase(parkingLot.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parking nie przyjmuje obecnie rezerwacji.");
         }
+
+        validateOpeningHours(parkingLot, request.getStartAt(), request.getEndAt());
 
         PricingPlan pricingPlan = pricingPlanRepository
             .findFirstByParkingLotParkingLotIdAndValidToIsNullOrderByValidFromDesc(parkingLot.getParkingLotId())
@@ -105,6 +114,18 @@ public class ReservationService {
             .toList();
     }
 
+    // Dla panelu admina — wszystkie rezerwacje w systemie (najnowsze pierwsze).
+    public List<ReservationResponseDTO> getAllReservations() {
+        return reservationRepository.findAll().stream()
+            .sorted((a, b) -> {
+                if (a.getReservedAt() == null) return 1;
+                if (b.getReservedAt() == null) return -1;
+                return b.getReservedAt().compareTo(a.getReservedAt());
+            })
+            .map(this::toResponse)
+            .toList();
+    }
+
     public ReservationResponseDTO getReservation(Integer customerId, Integer reservationId) {
         ensureCustomerExists(customerId);
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -114,9 +135,18 @@ public class ReservationService {
         return toResponse(reservation);
     }
 
-    @Transactional
-    public ReservationResponseDTO confirmReservation(Integer reservationId, String providerReference) {
+    @Transactional(noRollbackFor = ResponseStatusException.class)
+    public ReservationResponseDTO confirmReservation(Integer reservationId, Integer customerId, String providerReference, String paymentMethod) {
         Reservation reservation = findReservation(reservationId);
+
+        // Potwierdzić może tylko właściciel rezerwacji — bez tego każdy, kto zgadnie ID,
+        // mógł "opłacić" cudzą rezerwację przez Swaggera.
+        if (customerId == null
+            || reservation.getCustomer() == null
+            || !reservation.getCustomer().getCustomerId().equals(customerId)) {
+            throw notFound("Nie znaleziono rezerwacji klienta.");
+        }
+
         expireIfStale(reservation);
 
         if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
@@ -128,10 +158,34 @@ public class ReservationService {
         }
 
         reservation.setStatus(ReservationStatus.CONFIRMED);
-        return toResponse(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+
+        // Zapis "płatności" — w mockupie nie wołamy bramki płatności,
+        // ale zostawiamy ślad w tabeli payments żeby panel admina i przyszły
+        // refund/raport miał spójne dane.
+        Payment payment = new Payment();
+        payment.setReservation(saved);
+        payment.setAmount(saved.getPriceEstimated() != null ? saved.getPriceEstimated() : BigDecimal.ZERO);
+        payment.setCurrency(saved.getPricingPlan() != null ? saved.getPricingPlan().getCurrency() : "PLN");
+        payment.setPaymentMethod(resolvePaymentMethod(paymentMethod));
+        payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setProviderReference(providerReference);
+        payment.setPaidAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        return toResponse(saved);
     }
 
-    @Transactional
+    private PaymentMethod resolvePaymentMethod(String raw) {
+        if (raw == null || raw.isBlank()) return PaymentMethod.BLIK;
+        try {
+            return PaymentMethod.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return PaymentMethod.BLIK;
+        }
+    }
+
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public ReservationResponseDTO cancelReservation(Integer customerId, Integer reservationId) {
         ensureCustomerExists(customerId);
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -145,8 +199,86 @@ public class ReservationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Można anulować tylko rezerwację oczekującą lub potwierdzoną.");
         }
 
+        // FAQ obiecuje: można anulować do 30 minut przed startem rezerwacji.
+        // Frontend ma walidację, ale backend musi też pilnować — żeby nie szło obejść Swaggerem.
+        if (reservation.getStartAt() != null
+            && Duration.between(LocalDateTime.now(), reservation.getStartAt()).toMinutes() < 30) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Nie można anulować rezerwacji na mniej niż 30 minut przed jej rozpoczęciem.");
+        }
+
         reservation.setStatus(ReservationStatus.CANCELLED);
-        return toResponse(reservationRepository.save(reservation));
+        Reservation cancelled = reservationRepository.save(reservation);
+
+        // Zwrot płatności jeśli opłacona (status COMPLETED → REFUNDED).
+        paymentRepository.findByReservationReservationId(reservationId).forEach(p -> {
+            if (p.getStatus() == PaymentStatus.COMPLETED) {
+                p.setStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(p);
+            }
+        });
+
+        return toResponse(cancelled);
+    }
+
+    // Scheduler — co 60s:
+    // 1. PENDING nieopłacone w 15 minut → EXPIRED (przestają blokować miejsca),
+    // 2. CONFIRMED/ACTIVE po endAt → COMPLETED (bez tego rezerwacja po terminie
+    //    wisiała wiecznie jako "aktywna" i dało się ją anulować z refundem).
+    @Scheduled(fixedDelay = 60_000)
+    @Transactional
+    public void expireStalePending() {
+        LocalDateTime now = LocalDateTime.now();
+        for (Reservation r : reservationRepository.findByStatusAndExpiresAtBefore(ReservationStatus.PENDING, now)) {
+            r.setStatus(ReservationStatus.EXPIRED);
+            reservationRepository.save(r);
+        }
+        List<ReservationStatus> running = List.of(ReservationStatus.CONFIRMED, ReservationStatus.ACTIVE);
+        for (Reservation r : reservationRepository.findByStatusInAndEndAtBefore(running, now)) {
+            r.setStatus(ReservationStatus.COMPLETED);
+            reservationRepository.save(r);
+        }
+    }
+
+    private Vehicle resolveVehicle(ReservationRequestDTO request, Customer customer) {
+        if (request.getVehicleId() != null) {
+            return vehicleRepository
+                .findByVehicleIdAndCustomerCustomerId(request.getVehicleId(), customer.getCustomerId())
+                .orElseThrow(() -> notFound("Nie znaleziono pojazdu przypisanego do tego klienta."));
+        }
+
+        String plate = request.getPlateNumber().trim().replaceAll("\\s+", "").toUpperCase();
+        String country = normalizeCountry(request.getCountryCode());
+
+        return vehicleRepository
+            .findByPlateNumberAndCountryCodeAndCustomerCustomerId(plate, country, customer.getCustomerId())
+            .orElseGet(() -> {
+                // Para (tablica, kraj) jest unikalna globalnie — bez tego sprawdzenia
+                // zapis kończył się 500-tką z ConstraintViolation zamiast czytelnym 409.
+                if (vehicleRepository.existsByPlateNumberAndCountryCode(plate, country)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Ten numer rejestracyjny jest już przypisany do innego konta.");
+                }
+                Vehicle v = new Vehicle();
+                v.setCustomer(customer);
+                v.setPlateNumber(plate);
+                v.setCountryCode(country);
+                v.setPrimaryVehicle(false);
+                return vehicleRepository.save(v);
+            });
+    }
+
+    private String normalizeCountry(String raw) {
+        if (raw == null || raw.isBlank()) return "POL";
+        String upper = raw.trim().toUpperCase();
+        return switch (upper) {
+            case "PL" -> "POL";
+            case "DE" -> "DEU";
+            case "CZ" -> "CZE";
+            case "SK" -> "SVK";
+            case "UA" -> "UKR";
+            default -> upper.length() == 3 ? upper : "POL";
+        };
     }
 
     private void validateRequest(ReservationRequestDTO request) {
@@ -156,8 +288,8 @@ public class ReservationService {
         if (request.getCustomerId() == null) {
             throw badRequest("Brak identyfikatora klienta.");
         }
-        if (request.getVehicleId() == null) {
-            throw badRequest("Brak identyfikatora pojazdu.");
+        if (request.getVehicleId() == null && (request.getPlateNumber() == null || request.getPlateNumber().isBlank())) {
+            throw badRequest("Wybierz pojazd lub podaj tablicę rejestracyjną.");
         }
         if (request.getParkingLotId() == null) {
             throw badRequest("Brak identyfikatora parkingu.");
@@ -168,8 +300,60 @@ public class ReservationService {
         if (!request.getEndAt().isAfter(request.getStartAt())) {
             throw badRequest("Data zakończenia musi być późniejsza niż data rozpoczęcia.");
         }
+        long durationMinutes = Duration.between(request.getStartAt(), request.getEndAt()).toMinutes();
+        if (durationMinutes < MIN_RESERVATION_MINUTES) {
+            throw badRequest("Minimalny czas rezerwacji to 30 minut.");
+        }
         if (request.getStartAt().isBefore(LocalDateTime.now().minusMinutes(1))) {
             throw badRequest("Nie można utworzyć rezerwacji w przeszłości.");
+        }
+        if (request.getVehicleId() == null && request.getPlateNumber() != null) {
+            String normalizedPlate = request.getPlateNumber().trim().replaceAll("\\s+", "").toUpperCase();
+            if (!normalizedPlate.matches("[A-Z0-9]{2,10}")) {
+                throw badRequest("Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 znaków alfanumerycznych.");
+            }
+        }
+    }
+
+    private void validateOpeningHours(ParkingLot parkingLot, LocalDateTime startAt, LocalDateTime endAt) {
+        java.time.LocalTime from = parkingLot.getOpenFrom();
+        java.time.LocalTime to   = parkingLot.getOpenTo();
+        // Brak godzin albo from == to → czynny całą dobę.
+        if (from == null || to == null || from.equals(to)) return;
+
+        ResponseStatusException outsideHours = new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            String.format("Parking jest czynny tylko w godzinach %s–%s.", from, to));
+
+        if (from.isBefore(to)) {
+            // Parking dzienny: cała rezerwacja musi się zmieścić w obrębie jednego dnia
+            // w oknie [from, to]. Porównanie samych LocalTime przepuszczało rezerwację
+            // kończącą się o 00:00 następnego dnia (00:00 < openTo).
+            if (!startAt.toLocalDate().equals(endAt.toLocalDate())) {
+                // Wyjątek: koniec dokładnie o północy traktujemy jako koniec dnia startu.
+                boolean endsAtMidnight = endAt.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)
+                    && endAt.toLocalDate().equals(startAt.toLocalDate().plusDays(1));
+                if (!endsAtMidnight) throw outsideHours;
+                // 00:00 jako koniec dnia mieści się tylko gdy parking czynny do 24:00 — a to
+                // reprezentujemy przez from==to (całą dobę), więc tutaj zawsze poza godzinami.
+                throw outsideHours;
+            }
+            if (startAt.toLocalTime().isBefore(from) || endAt.toLocalTime().isAfter(to)) {
+                throw outsideHours;
+            }
+        } else {
+            // Parking nocny (np. 22:00–06:00): okno biegnie od `from` dnia D do `to` dnia D+1.
+            LocalDateTime windowStart;
+            if (!startAt.toLocalTime().isBefore(from)) {
+                windowStart = startAt.toLocalDate().atTime(from);
+            } else if (!startAt.toLocalTime().isAfter(to)) {
+                windowStart = startAt.toLocalDate().minusDays(1).atTime(from);
+            } else {
+                throw outsideHours;
+            }
+            LocalDateTime windowEnd = windowStart.toLocalDate().plusDays(1).atTime(to);
+            if (startAt.isBefore(windowStart) || endAt.isAfter(windowEnd)) {
+                throw outsideHours;
+            }
         }
     }
 

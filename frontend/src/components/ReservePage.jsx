@@ -1,11 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import * as I from "../icons";
 import PCard from "./PCard";
 import { MOCK_PARKINGS } from "../data/mockData";
-import { calcHours, getParkingAvailability } from "../data/parkingAvailability";
+import {
+  MIN_RESERVATION_MINUTES,
+  calcBillableHours,
+  calcMinutes,
+  formatDuration,
+} from "../data/parkingAvailability";
+import { fetchParkingLots, createReservation, confirmReservation, checkAvailability } from "../data/api";
 
 const STEPS = [
   { n: 1, label: "Parking" },
@@ -37,34 +43,230 @@ const fmtDate = (iso) => {
   return `${d}.${m}.${y}`;
 };
 
-export default function ReservePage({ vehicles = [], setPage, setToast }) {
-  const [step, setStep]             = useState(1);
-  const [selectedId, setSelectedId] = useState(null);
-  const [search, setSearch]         = useState("");
-  const [vehicleMode, setVehicleMode] = useState("saved");
-  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || null);
-  const [plate, setPlate]           = useState("");
-  const [date, setDate]             = useState("2026-04-20");
-  const [timeFrom, setTimeFrom]     = useState("09:00");
-  const [timeTo, setTimeTo]         = useState("17:00");
-  const [payMethod, setPayMethod]   = useState("blik");
+const DRAFT_VERSION = 2;
+const getDraftKey = (customerId) => customerId ? `parkuj.reserveDraft.${customerId}` : null;
+
+const createDefaultDraft = (vehicles = []) => ({
+  step: 1,
+  selectedId: null,
+  search: "",
+  vehicleMode: "saved",
+  selectedVehicleId: vehicles[0]?.id || null,
+  plate: "",
+  date: new Date().toISOString().slice(0, 10),
+  timeFrom: "09:00",
+  timeTo: "17:00",
+  payMethod: "blik",
+});
+
+const normalizeDraft = (draft, vehicles = []) => {
+  const defaults = createDefaultDraft(vehicles);
+  if (!draft || draft.version !== DRAFT_VERSION) return defaults;
+
+  return {
+    ...defaults,
+    step: draft.step === 2 && draft.selectedId ? 2 : 1,
+    selectedId: draft.selectedId || null,
+    search: typeof draft.search === "string" ? draft.search : defaults.search,
+    vehicleMode: draft.vehicleMode === "manual" ? "manual" : defaults.vehicleMode,
+    selectedVehicleId: draft.selectedVehicleId || defaults.selectedVehicleId,
+    plate: typeof draft.plate === "string" ? draft.plate : defaults.plate,
+    date: typeof draft.date === "string" && draft.date ? draft.date : defaults.date,
+    timeFrom: typeof draft.timeFrom === "string" && draft.timeFrom ? draft.timeFrom : defaults.timeFrom,
+    timeTo: typeof draft.timeTo === "string" && draft.timeTo ? draft.timeTo : defaults.timeTo,
+    payMethod: ["blik", "card", "gpay"].includes(draft.payMethod) ? draft.payMethod : defaults.payMethod,
+  };
+};
+
+const readDraft = (customerId, vehicles = []) => {
+  const key = getDraftKey(customerId);
+  if (!key || typeof window === "undefined") return createDefaultDraft(vehicles);
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return normalizeDraft(parsed, vehicles);
+  } catch {
+    return createDefaultDraft(vehicles);
+  }
+};
+
+const writeDraft = (customerId, draft) => {
+  const key = getDraftKey(customerId);
+  if (!key || typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        version: DRAFT_VERSION,
+        ...draft,
+        step: draft.step === 3 ? 2 : draft.step,
+      })
+    );
+  } catch {
+    // Session storage is a convenience only; the form still works without it.
+  }
+};
+
+const clearDraft = (customerId) => {
+  const key = getDraftKey(customerId);
+  if (!key || typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // no-op
+  }
+};
+
+const roundMoney = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
+const formatBillableHours = (hours) =>
+  hours.toFixed(2).replace(/\.?0+$/, "");
+
+export default function ReservePage({ user, vehicles = [], vehiclesOwnerId = null, setPage, setToast }) {
+  const customerId = user?.customerId || null;
+  const accountVehicles = useMemo(
+    () => vehiclesOwnerId === customerId ? vehicles : [],
+    [vehiclesOwnerId, customerId, vehicles]
+  );
+  const [draftOwnerId, setDraftOwnerId] = useState(customerId);
+  const draft = useMemo(() => readDraft(customerId, accountVehicles), []);
+  const [step, setStep]             = useState(() => draft.step || 1);
+  const [selectedId, setSelectedId] = useState(() => draft.selectedId || null);
+  const [search, setSearch]         = useState(() => draft.search || "");
+  const [vehicleMode, setVehicleMode] = useState(() => draft.vehicleMode || "saved");
+  const [selectedVehicleId, setSelectedVehicleId] = useState(() => draft.selectedVehicleId || vehicles[0]?.id || null);
+  const [plate, setPlate]           = useState(() => draft.plate || "");
+  const [date, setDate]             = useState(() => draft.date || new Date().toISOString().slice(0, 10));
+  const [timeFrom, setTimeFrom]     = useState(() => draft.timeFrom || "09:00");
+  const [timeTo, setTimeTo]         = useState(() => draft.timeTo || "17:00");
+  const [payMethod, setPayMethod]   = useState(() => draft.payMethod || "blik");
   const [blik, setBlik]             = useState(["", "", "", "", "", ""]);
+  const [parkings, setParkings]     = useState(MOCK_PARKINGS);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  // Real-time dostępność dla każdego parkingu — pobierana z backendu przy
+  // zmianie daty/godzin. Klucz = parking.id, wartość = AvailabilityDTO.
+  const [availabilityMap, setAvailabilityMap] = useState({});
+
+  useEffect(() => {
+    if (draftOwnerId === customerId) return;
+    const nextDraft = readDraft(customerId, []);
+    setDraftOwnerId(customerId);
+    setStep(nextDraft.step);
+    setSelectedId(nextDraft.selectedId);
+    setSearch(nextDraft.search);
+    setVehicleMode(nextDraft.vehicleMode);
+    setSelectedVehicleId(nextDraft.selectedVehicleId);
+    setPlate(nextDraft.plate);
+    setDate(nextDraft.date);
+    setTimeFrom(nextDraft.timeFrom);
+    setTimeTo(nextDraft.timeTo);
+    setPayMethod(nextDraft.payMethod);
+    setBlik(["", "", "", "", "", ""]);
+    setSubmitError("");
+    setAvailabilityMap({});
+  }, [customerId, draftOwnerId]);
+
+  useEffect(() => {
+    if (!customerId || draftOwnerId !== customerId) return;
+    writeDraft(customerId, {
+      step,
+      selectedId,
+      search,
+      vehicleMode,
+      selectedVehicleId,
+      plate,
+      date,
+      timeFrom,
+      timeTo,
+      payMethod,
+    });
+  }, [customerId, draftOwnerId, step, selectedId, search, vehicleMode, selectedVehicleId, plate, date, timeFrom, timeTo, payMethod]);
+
+  useEffect(() => {
+    if (vehicleMode !== "saved") return;
+    if (!accountVehicles.length) {
+      if (selectedVehicleId) setSelectedVehicleId(null);
+      return;
+    }
+    if (!accountVehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
+      setSelectedVehicleId(accountVehicles[0].id);
+    }
+  }, [accountVehicles, vehicleMode, selectedVehicleId]);
+
+  useEffect(() => {
+    let active = true;
+    fetchParkingLots().then((data) => { if (active) setParkings(data); });
+    return () => { active = false; };
+  }, []);
+
+  // Sprawdź dostępność każdego parkingu dla wybranego terminu (debounce 400 ms).
+  // Bez tego liczniki były generowane lokalnie z pseudolosowej formuły i nie
+  // miały związku z faktycznym stanem bazy.
+  useEffect(() => {
+    if (!date || !timeFrom || !timeTo || !parkings.length) return;
+    const from = `${date}T${timeFrom}:00`;
+    const to   = `${date}T${timeTo}:00`;
+    if (from >= to || calcMinutes(timeFrom, timeTo) < MIN_RESERVATION_MINUTES) {
+      setAvailabilityMap({});
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const entries = await Promise.all(
+        parkings.map((p) =>
+          checkAvailability(p.id, from, to)
+            .then((a) => [p.id, a])
+            .catch(() => [p.id, null])
+        )
+      );
+      if (!cancelled) setAvailabilityMap(Object.fromEntries(entries));
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [parkings, date, timeFrom, timeTo]);
+
+  // Liczba wolnych miejsc dla parkingu — z backendu jeśli pobrane, w przeciwnym
+  // razie statyczne reservablePlacesCount jako optymistyczny placeholder.
+  const getAvailability = (p) => {
+    const real = availabilityMap[p.id];
+    return real?.availableSpots ?? p.available ?? 0;
+  };
+
+  // Sprawdź czy wybrany przedział mieści się w godzinach otwarcia parkingu.
+  const isWithinOpeningHours = (p) => {
+    if (!p.openFrom || !p.openTo || !timeFrom || !timeTo) return true;
+    return timeFrom >= p.openFrom && timeTo <= p.openTo;
+  };
 
   const filteredParkings = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return MOCK_PARKINGS.filter((p) => {
+    return parkings.filter((p) => {
       const matchesQuery = !query || `${p.name} ${p.address}`.toLowerCase().includes(query);
-      const hasAvailability = getParkingAvailability(p, date, timeFrom, timeTo) > 0;
-      return matchesQuery && hasAvailability;
+      // Filtrujemy "brak miejsc" tylko gdy mamy realną odpowiedź z backendu;
+      // dopóki request jest w locie, pokazujemy wszystkie żeby uniknąć błyskania.
+      const real = availabilityMap[p.id];
+      const hasAvailability = real ? real.available : true;
+      const withinHours = calcMinutes(timeFrom, timeTo) > 0 ? isWithinOpeningHours(p) : true;
+      return matchesQuery && hasAvailability && withinHours;
     });
-  }, [search, date, timeFrom, timeTo]);
+  }, [parkings, search, availabilityMap, timeFrom, timeTo]);
 
-  const parking = MOCK_PARKINGS.find((p) => p.id === selectedId);
-  const savedVehicles = vehicles.length ? vehicles : [];
+  const parking = parkings.find((p) => p.id === selectedId);
+  const savedVehicles = accountVehicles.length ? accountVehicles : [];
   const selectedVehicle = savedVehicles.find((v) => v.id === selectedVehicleId) || savedVehicles[0];
   const activePlate = vehicleMode === "saved" ? selectedVehicle?.plate || "" : plate;
-  const hours = calcHours(timeFrom, timeTo);
-  const total = Math.round(hours * (parking?.price || 0));
+  const minutes = calcMinutes(timeFrom, timeTo);
+  const billableHours = calcBillableHours(timeFrom, timeTo);
+  const durationLabel = formatDuration(minutes);
+  const durationTooShort = minutes > 0 && minutes < MIN_RESERVATION_MINUTES;
+  const hasValidDuration = minutes >= MIN_RESERVATION_MINUTES;
+  // Keep the visible total aligned with backend BigDecimal price calculation.
+  const totalRaw = roundMoney(billableHours * (parking?.price || 0));
+  const total = totalRaw > 0 ? totalRaw.toFixed(2) : "0.00";
+  // Rezerwacja w przeszłości — porównujemy start z bieżącą chwilą.
+  const isPastReservation = date && timeFrom
+    ? new Date(`${date}T${timeFrom}:00`) < new Date()
+    : false;
 
   const handleBlikDigit = (i, val) => {
     if (!/^\d?$/.test(val)) return;
@@ -74,15 +276,88 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
     if (val && i < 5) document.getElementById(`blik-${i + 1}`)?.focus();
   };
 
-  const handleConfirm = () => {
+  const resetWizard = () => {
+    clearDraft(customerId);
     setStep(1);
     setSelectedId(null);
     setSearch("");
     setVehicleMode("saved");
     setSelectedVehicleId(savedVehicles[0]?.id || null);
     setPlate("");
+    // Reset terminu — efekt zapisujący draft odpala się jeszcze przed unmountem
+    // i bez tego utrwalał starą datę/godziny do sessionStorage po clearDraft.
+    setDate(new Date().toISOString().slice(0, 10));
+    setTimeFrom("09:00");
+    setTimeTo("17:00");
     setBlik(["", "", "", "", "", ""]);
-    setToast("✓ Rezerwacja potwierdzona! Szlaban otworzy się automatycznie.");
+    setSubmitError("");
+  };
+
+  const handleConfirm = async () => {
+    if (!user?.customerId) {
+      setSubmitError("Musisz być zalogowany, żeby zarezerwować.");
+      return;
+    }
+    if (!parking) {
+      setSubmitError("Wybierz parking.");
+      return;
+    }
+    if (minutes <= 0) {
+      setSubmitError("Godziny rezerwacji są nieprawidłowe.");
+      return;
+    }
+
+    if (durationTooShort) {
+      setSubmitError(`Minimalny czas rezerwacji to ${MIN_RESERVATION_MINUTES} minut.`);
+      return;
+    }
+
+    const payload = {
+      customerId: user.customerId,
+      parkingLotId: parking.id,
+      startAt: `${date}T${timeFrom}:00`,
+      endAt: `${date}T${timeTo}:00`,
+    };
+    if (vehicleMode === "saved" && selectedVehicle?.id) {
+      payload.vehicleId = selectedVehicle.id;
+    } else if (vehicleMode === "manual") {
+      const trimmed = plate.trim().replace(/\s+/g, "").toUpperCase();
+      if (!trimmed) {
+        setSubmitError("Podaj numer rejestracyjny.");
+        return;
+      }
+      if (!/^[A-Z0-9]{2,10}$/.test(trimmed)) {
+        setSubmitError("Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 liter i cyfr.");
+        return;
+      }
+      payload.plateNumber = trimmed;
+      payload.countryCode = "PL";
+    } else {
+      setSubmitError("Wybierz pojazd lub wpisz tablicę ręcznie.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const reservation = await createReservation(payload);
+      // Symulacja płatności — od razu potwierdzamy i zapisujemy Payment.
+      // W realu byłby tu callback od bramki (BLIK/karta).
+      const methodMap = { blik: "BLIK", card: "CARD", gpay: "CARD" };
+      const confirmed = await confirmReservation(
+        reservation.id,
+        user.customerId,
+        methodMap[payMethod] || "BLIK",
+        `MOCK_${payMethod.toUpperCase()}_${Date.now()}`
+      );
+      resetWizard();
+      setToast(`✓ Rezerwacja potwierdzona! Kod: ${confirmed.code}`);
+      setPage("reservations");
+    } catch (err) {
+      setSubmitError(err.message || "Nie udało się utworzyć rezerwacji.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const StepBar = ({ current }) => (
@@ -105,8 +380,8 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
           {[
             ["Parking", parking?.name || "—"],
             ["Data", fmtDate(date) || "—"],
-            ["Godziny", hours > 0 ? `${timeFrom} – ${timeTo}` : "—"],
-            ["Czas", hours > 0 ? `${hours} h` : "—"],
+            ["Godziny", minutes > 0 ? `${timeFrom} – ${timeTo}` : "—"],
+            ["Czas", minutes > 0 ? durationLabel : "—"],
             ["Tablica", activePlate || "—"],
           ].map(([k, v]) => (
             <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
@@ -117,7 +392,7 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
           <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0", fontWeight: 800, fontSize: 16 }}>
             <span style={{ color: "var(--text)" }}>Suma</span>
             <span style={{ color: "var(--accent)", fontFamily: "'Space Mono',monospace" }}>
-              {total > 0 ? `${total} zł` : "—"}
+              {totalRaw > 0 ? `${total} zł` : "—"}
             </span>
           </div>
         </div>
@@ -148,7 +423,13 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
       <div className="reservation-filters">
         <div className="fg">
           <label className="fl">Data</label>
-          <input className="fi" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            className="fi"
+            type="date"
+            value={date}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
         <div className="fg">
           <label className="fl">Od</label>
@@ -158,9 +439,21 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
           <label className="fl">Do</label>
           <input className="fi" type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </div>
-        <div className="filter-summary">
-          <span>{hours > 0 ? `${hours} h postoju` : "Wybierz poprawne godziny"}</span>
-          <strong>{filteredParkings.length} parkingów dostępnych</strong>
+        <div className={`filter-summary${filteredParkings.length > 0 && !isPastReservation && hasValidDuration ? " is-available" : ""}`}>
+          <span>
+            {isPastReservation
+              ? "Termin w przeszłości — wybierz przyszły"
+              : durationTooShort
+                ? `Minimum rezerwacji to ${MIN_RESERVATION_MINUTES} minut`
+                : minutes > 0
+                  ? `${durationLabel} postoju`
+                : "Wybierz poprawne godziny"}
+          </span>
+          <strong>
+            {!isPastReservation && hasValidDuration
+              ? `${filteredParkings.length} parkingów dostępnych`
+              : "Ustaw poprawny termin"}
+          </strong>
         </div>
       </div>
 
@@ -171,7 +464,7 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
               <PCard
                 key={p.id}
                 p={p}
-                availability={getParkingAvailability(p, date, timeFrom, timeTo)}
+                availability={getAvailability(p)}
                 selected={selectedId === p.id}
                 onClick={() => setSelectedId(p.id)}
                 onDetails={() => setPage("parkingDetails", { parkingId: p.id })}
@@ -199,8 +492,8 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
               subdomains="abcd"
               maxZoom={20}
             />
-            {MOCK_PARKINGS.map((p) => {
-              const availability = getParkingAvailability(p, date, timeFrom, timeTo);
+            {parkings.map((p) => {
+              const availability = getAvailability(p);
               return (
               <Marker
                 key={p.id}
@@ -233,7 +526,11 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
       </div>
 
       <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-        <button className="btn btn-a" disabled={!selectedId} onClick={() => setStep(2)}>
+        <button
+          className="btn btn-a"
+          disabled={!selectedId || isPastReservation || !hasValidDuration}
+          onClick={() => setStep(2)}
+        >
           Dalej <I.Arr />
         </button>
       </div>
@@ -314,10 +611,22 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
             </div>
           </div>
 
-          {hours > 0 && (
+          {hasValidDuration && (
             <div style={{ padding: "10px 14px", background: "var(--bg3)", borderRadius: 8, fontSize: 13, marginBottom: 18, display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text2)" }}>{hours} h × {parking?.price} zł</span>
+              <span style={{ color: "var(--text2)" }}>{formatBillableHours(billableHours)} h × {parking?.price} zł</span>
               <span style={{ fontWeight: 700, color: "var(--accent)", fontFamily: "'Space Mono',monospace" }}>{total} zł</span>
+            </div>
+          )}
+
+          {durationTooShort && (
+            <div className="auth-error" style={{ marginBottom: 16 }}>
+              <I.Alert /> Minimalny czas rezerwacji to {MIN_RESERVATION_MINUTES} minut.
+            </div>
+          )}
+
+          {isPastReservation && (
+            <div className="auth-error" style={{ marginBottom: 16 }}>
+              <I.Alert /> Wybrana data i godzina są już w przeszłości. Wybierz przyszły termin.
             </div>
           )}
 
@@ -325,7 +634,7 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
             <div />
             <button
               className="btn btn-a"
-              disabled={!activePlate || hours <= 0}
+              disabled={!activePlate || !hasValidDuration || isPastReservation}
               onClick={() => setStep(3)}
             >
               Przejdź do płatności <I.Arr />
@@ -429,12 +738,19 @@ export default function ReservePage({ vehicles = [], setPage, setToast }) {
             </div>
           )}
 
+          {submitError && (
+            <div className="auth-error" style={{ marginTop: 16 }}>
+              <I.Alert /> {submitError}
+            </div>
+          )}
+
           <button
             className="btn btn-a btn-block"
             style={{ marginTop: 20 }}
             onClick={handleConfirm}
+            disabled={submitting || !hasValidDuration || isPastReservation}
           >
-            Zapłać {total} zł i zarezerwuj <I.Check />
+            {submitting ? "Tworzenie rezerwacji…" : <>Zapłać {total} zł i zarezerwuj <I.Check /></>}
           </button>
         </div>
 

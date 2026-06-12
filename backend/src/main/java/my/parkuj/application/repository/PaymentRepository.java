@@ -6,7 +6,8 @@ import org.springframework.stereotype.Repository;
 import my.parkuj.application.model.Payment;
 
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
+public interface PaymentRepository extends JpaRepository<Payment, Integer> {
 
+    java.util.List<Payment> findByReservationReservationId(Integer reservationId);
 }
 

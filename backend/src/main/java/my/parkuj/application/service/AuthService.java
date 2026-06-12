@@ -2,6 +2,7 @@ package my.parkuj.application.service;
 
 import java.util.Locale;
 import my.parkuj.application.dto.CustomerDTO;
+import my.parkuj.application.dto.LoginRequestDTO;
 import my.parkuj.application.dto.RegisterRequestDTO;
 import my.parkuj.application.model.Customer;
 import my.parkuj.application.model.Vehicle;
@@ -15,6 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AuthService {
+
+    private static final String EMAIL_PATTERN = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
 
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
@@ -38,26 +41,47 @@ public class AuthService {
         customer.setFirstName(request.getFirstName().trim());
         customer.setLastName(request.getLastName().trim());
         customer.setEmail(email);
-        customer.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
+        customer.setPhone(isBlank(request.getPhone()) ? null : request.getPhone().trim());
         customer.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         customer.setStatus("ACTIVE");
         Customer saved = customerRepository.save(customer);
 
-        // Jeśli podano tablicę — utwórz pojazd główny (jeśli nie zajęty przez kogoś innego).
         if (request.getPlate() != null && !request.getPlate().isBlank()) {
             String plate = request.getPlate().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
             String countryCode = normalizeCountryCode(request.getCountryCode());
-            if (!vehicleRepository.existsByPlateNumberAndCountryCode(plate, countryCode)) {
-                Vehicle vehicle = new Vehicle();
-                vehicle.setCustomer(saved);
-                vehicle.setPlateNumber(plate);
-                vehicle.setCountryCode(countryCode);
-                vehicle.setPrimaryVehicle(true);
-                vehicleRepository.save(vehicle);
+            if (vehicleRepository.existsByPlateNumberAndCountryCode(plate, countryCode)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Pojazd z tą tablicą jest już zarejestrowany w systemie. Załóż konto bez tablicy i skontaktuj się z obsługą.");
             }
+            Vehicle vehicle = new Vehicle();
+            vehicle.setCustomer(saved);
+            vehicle.setPlateNumber(plate);
+            vehicle.setCountryCode(countryCode);
+            vehicle.setPrimaryVehicle(true);
+            vehicleRepository.save(vehicle);
         }
 
         return CustomerDTO.fromEntity(saved);
+    }
+
+    public CustomerDTO login(LoginRequestDTO request) {
+        if (request == null || isBlank(request.getEmail()) || isBlank(request.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj e-mail i hasło.");
+        }
+
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        Customer customer = customerRepository.findByEmail(email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło."));
+
+        if (customer.getPasswordHash() == null || customer.getPasswordHash().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło.");
+        }
+
+        if (!passwordEncoder.matches(request.getPassword(), customer.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło.");
+        }
+
+        return CustomerDTO.fromEntity(customer);
     }
 
     private void validate(RegisterRequestDTO request) {
@@ -70,8 +94,19 @@ public class AuthService {
         if (isBlank(request.getEmail())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj adres e-mail.");
         }
+        String email = request.getEmail().trim();
+        if (!email.matches(EMAIL_PATTERN)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj poprawny adres e-mail.");
+        }
         if (isBlank(request.getPassword()) || request.getPassword().length() < 6) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hasło musi mieć co najmniej 6 znaków.");
+        }
+        if (!isBlank(request.getPlate())) {
+            String plate = request.getPlate().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+            if (!plate.matches("[A-Z0-9]{2,10}")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Nieprawidłowy numer rejestracyjny. Dozwolone: 2–10 znaków alfanumerycznych.");
+            }
         }
     }
 

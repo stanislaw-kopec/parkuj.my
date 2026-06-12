@@ -22,25 +22,20 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentDTO payForReservation(Integer reservationId, PaymentMethod method) {
-        ReservationResponseDTO reservation = reservationService.confirmReservation(reservationId, "MOCK_PAYMENT");
-
-        Payment payment = new Payment();
-        payment.setAmount(reservation.getPriceEstimated());
-        payment.setCurrency(reservation.getCurrency());
-        payment.setPaymentMethod(method);
-        payment.setStatus(PaymentStatus.COMPLETED);
-        payment.setPaidAt(LocalDateTime.now());
-        payment = paymentRepository.save(payment);
+    public PaymentDTO payForReservation(Integer reservationId, Integer customerId, PaymentMethod method) {
+        // confirmReservation już tworzy rekord Payment (status=COMPLETED) — tu
+        // tylko zwracamy zamapowane dane bez zapisu duplikatu.
+        ReservationResponseDTO reservation = reservationService.confirmReservation(
+            reservationId, customerId, "MOCK_PAYMENT", method != null ? method.name() : null
+        );
 
         PaymentDTO dto = new PaymentDTO();
-        dto.setPaymentId(payment.getPaymentId());
         dto.setReservationId(reservationId);
-        dto.setAmount(payment.getAmount());
-        dto.setCurrency(payment.getCurrency());
-        dto.setMethod(payment.getPaymentMethod());
-        dto.setStatus(payment.getStatus());
-        dto.setPaidAt(payment.getPaidAt());
+        dto.setAmount(reservation.getPriceEstimated());
+        dto.setCurrency(reservation.getCurrency());
+        dto.setMethod(method);
+        dto.setStatus(PaymentStatus.COMPLETED);
+        dto.setPaidAt(LocalDateTime.now());
         return dto;
     }
 }

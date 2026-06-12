@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as I from "../icons";
-import { registerCustomer, loginCustomer, forgotPassword } from "../data/api";
+import { registerCustomer, loginCustomer, forgotPassword, fetchMyParkingLots } from "../data/api";
 
 const initialLogin = {
   email: "jan@gmail.com",
@@ -59,9 +59,17 @@ export default function AuthPage({ setUser, setRole, setPage, setToast }) {
         phone: customer.phone,
       };
       localStorage.setItem("user", JSON.stringify(userData));
-      setRole("customer");
+      // Jeśli klient ma już zarejestrowane parkingi, traktujemy go jako właściciela
+      // i wpadamy od razu na panel zarządzania. Bez tego owner-rola znikała po
+      // każdym wylogowaniu i klient mocno-merytoryczny lądował na home klienta.
+      let nextRole = "customer";
+      try {
+        const lots = await fetchMyParkingLots(customer.customerId);
+        if (Array.isArray(lots) && lots.length > 0) nextRole = "owner";
+      } catch { /* brak parkingów lub błąd sieci — zostaw klienta */ }
+      setRole(nextRole);
       setUser(userData);
-      setPage("home");
+      setPage(nextRole === "owner" ? "dashboard" : "home");
       setToast("Zalogowano pomyślnie.");
     } catch (err) {
       setError(err.message || "Logowanie nie powiodło się.");

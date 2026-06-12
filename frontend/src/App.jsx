@@ -144,10 +144,20 @@ export default function App() {
       setPage("landing", { replace: true });
       return;
     }
-    // Panel właściciela tylko dla roli 'owner' (US-A05). Klient próbujący wejść
+    // Panel właściciela tylko dla roli 'owner'. Klient próbujący wejść
     // przez bezpośredni URL ląduje na stronie głównej.
     if (page === "dashboard" && role !== "owner") {
       setPage("home", { replace: true });
+      return;
+    }
+    // Właściciel parkingu nie powinien widzieć stron klienta — wymusza dashboard.
+    // Wyjątek: /join (dodaje kolejny parking), /contact, /settings, /parking/:id.
+    if (
+      role === "owner" &&
+      (page === "home" || page === "reserve" || page === "reservations" ||
+       page === "user" || page === "addCar")
+    ) {
+      setPage("dashboard", { replace: true });
     }
   }, [user, admin, role, page]);
 

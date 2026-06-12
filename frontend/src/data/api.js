@@ -87,8 +87,8 @@ export function updateIncidentStatus(incidentId, status, adminId) {
   });
 }
 
-export function fetchParkingLotStats(lotId) {
-  return apiCall(`/api/parking-lots/${lotId}/stats`);
+export function fetchParkingLotStats(lotId, customerId) {
+  return apiCall(`/api/parking-lots/${lotId}/stats?customerId=${customerId}`);
 }
 
 export function updateParkingLotConfig(lotId, customerId, payload) {

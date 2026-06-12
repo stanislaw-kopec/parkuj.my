@@ -36,7 +36,7 @@ export default function PCard({ p, onClick, onDetails, selected, availability = 
               display: "inline-block",
             }}
           />
-          {availability}/{p.spots}
+          {availability} wolnych
         </span>
         {p.rating && (
           <span className="pc-rat">

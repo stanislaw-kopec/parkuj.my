@@ -248,9 +248,10 @@ public class ParkingLotService {
         }
     }
 
-    // Statystyki dla panelu operatora — bieżący stan + 7-dniowa historia rezerwacji i przychodu.
-    public ParkingLotStatsDTO getStats(Integer parkingLotId) {
+    // Statystyki dla panelu właściciela — bieżący stan + 7-dniowa historia rezerwacji i przychodu.
+    public ParkingLotStatsDTO getStats(Integer parkingLotId, Integer ownerCustomerId) {
         ParkingLot lot = findParkingLot(parkingLotId);
+        ensureOwner(lot, ownerCustomerId);
 
         ParkingLotStatsDTO stats = new ParkingLotStatsDTO();
         stats.setParkingLotId(lot.getParkingLotId());

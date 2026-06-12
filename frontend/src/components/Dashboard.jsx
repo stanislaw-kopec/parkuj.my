@@ -40,7 +40,7 @@ export default function Dashboard({ user, setPage, setToast }) {
         setLots(data);
         const firstId = data[0].id ?? data[0].parkingLotId;
         setLotId(firstId);
-        const s = await fetchParkingLotStats(firstId);
+        const s = await fetchParkingLotStats(firstId, user.customerId);
         if (!active) return;
         setStats(s);
         setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
@@ -57,7 +57,7 @@ export default function Dashboard({ user, setPage, setToast }) {
     setLotId(id);
     setStats(null);
     try {
-      const s = await fetchParkingLotStats(id);
+      const s = await fetchParkingLotStats(id, user.customerId);
       setStats(s);
       setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
     } catch { /* zostaw null */ }
@@ -66,7 +66,7 @@ export default function Dashboard({ user, setPage, setToast }) {
   const refreshStats = async () => {
     if (!lotId) return;
     try {
-      const s = await fetchParkingLotStats(lotId);
+      const s = await fetchParkingLotStats(lotId, user.customerId);
       setStats(s);
       setSplit({ total: s.placesCount || 0, reservable: s.reservablePlacesCount || 0 });
     } catch { /* zostaw */ }
@@ -229,9 +229,14 @@ export default function Dashboard({ user, setPage, setToast }) {
             <p className="ss">{stats.parkingLotName} · z bazy danych</p>
           )}
         </div>
-        <button className="btn btn-o btn-sm" onClick={refreshStats}>
-          Odśwież
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-a btn-sm" onClick={() => setPage("join")}>
+            <I.Plus /> Dodaj parking
+          </button>
+          <button className="btn btn-o btn-sm" onClick={refreshStats}>
+            Odśwież
+          </button>
+        </div>
       </div>
 
       <div className="d-grid">

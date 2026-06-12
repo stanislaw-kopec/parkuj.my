@@ -147,15 +147,6 @@ export default function AdminDashboard({ admin, setAdmin, setPage, setToast }) {
 
       <div className="d-grid" style={{ marginBottom: 20 }}>
         <div className="d-stat">
-          <div className="d-stat-l">Przychód łącznie</div>
-          <div className="d-stat-v">
-            {adminStats?.totalRevenue != null
-              ? `${Number(adminStats.totalRevenue).toLocaleString("pl")} zł`
-              : `${reservations.filter((r) => ["CONFIRMED","ACTIVE","COMPLETED"].includes(r.backendStatus)).reduce((s,r) => s + (Number(r.price)||0), 0).toFixed(0)} zł`}
-          </div>
-          <div className="d-stat-c">opłacone rezerwacje</div>
-        </div>
-        <div className="d-stat">
           <div className="d-stat-l">Klienci w bazie</div>
           <div className="d-stat-v">{adminStats?.totalCustomers ?? customers.length}</div>
           <div className="d-stat-c">zarejestrowani użytkownicy</div>

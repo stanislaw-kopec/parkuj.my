@@ -5,16 +5,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import my.parkuj.application.enums.PaymentStatus;
 import my.parkuj.application.enums.ReservationStatus;
 import my.parkuj.application.model.ParkingLot;
-import my.parkuj.application.model.Payment;
 import my.parkuj.application.model.Reservation;
 import my.parkuj.application.repository.AdminUserRepository;
 import my.parkuj.application.repository.CustomerRepository;
 import my.parkuj.application.repository.IncidentReportRepository;
 import my.parkuj.application.repository.ParkingLotRepository;
-import my.parkuj.application.repository.PaymentRepository;
 import my.parkuj.application.repository.ReservationRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,7 +31,6 @@ public class StatsController {
     private final ParkingLotRepository parkingLotRepository;
     private final CustomerRepository customerRepository;
     private final ReservationRepository reservationRepository;
-    private final PaymentRepository paymentRepository;
     private final IncidentReportRepository incidentReportRepository;
     private final AdminUserRepository adminUserRepository;
 
@@ -42,14 +38,12 @@ public class StatsController {
         ParkingLotRepository parkingLotRepository,
         CustomerRepository customerRepository,
         ReservationRepository reservationRepository,
-        PaymentRepository paymentRepository,
         IncidentReportRepository incidentReportRepository,
         AdminUserRepository adminUserRepository
     ) {
         this.parkingLotRepository = parkingLotRepository;
         this.customerRepository = customerRepository;
         this.reservationRepository = reservationRepository;
-        this.paymentRepository = paymentRepository;
         this.incidentReportRepository = incidentReportRepository;
         this.adminUserRepository = adminUserRepository;
     }
@@ -77,12 +71,8 @@ public class StatsController {
         if (!ok) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wymagane konto administratora.");
         }
-        BigDecimal totalRevenue = paymentRepository.findAll().stream()
-            .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
-            .map(Payment::getAmount)
-            .filter(Objects::nonNull)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        // Admin aplikacji odpowiada za ruch, nie za pieniądze — kafelek przychodu
+        // został wycięty świadomie. Wykluczone z odpowiedzi, więc też nie liczymy.
         long totalCustomers = customerRepository.count();
 
         long activeReservations = reservationRepository.findAll().stream()
@@ -92,7 +82,6 @@ public class StatsController {
         long openIncidents = incidentReportRepository.countByStatusIgnoreCase("OPEN");
 
         Map<String, Object> response = new HashMap<>();
-        response.put("totalRevenue", totalRevenue);
         response.put("totalCustomers", totalCustomers);
         response.put("activeReservations", activeReservations);
         response.put("openIncidents", openIncidents);

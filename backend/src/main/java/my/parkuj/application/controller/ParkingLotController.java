@@ -73,10 +73,14 @@ public class ParkingLotController {
         return parkingLotService.estimatePrice(id, from, to);
     }
 
-    // Statystyki dla panelu operatora (US-A02): kafelki + wykresy z prawdziwego SQL.
+    // Statystyki parkingu dla panelu właściciela — wymagany customerId właściciela
+    // żeby nie dało się podejrzeć cudzych obrotów znając ID parkingu.
     @GetMapping("/{id}/stats")
-    public ParkingLotStatsDTO getStats(@PathVariable Integer id) {
-        return parkingLotService.getStats(id);
+    public ParkingLotStatsDTO getStats(
+        @PathVariable Integer id,
+        @RequestParam Integer customerId
+    ) {
+        return parkingLotService.getStats(id, customerId);
     }
 
     // Zmiana ceny godzinowej (append-only: tworzy nowy PricingPlan, zamyka poprzedni).

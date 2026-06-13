@@ -22,21 +22,16 @@ public class AuthController {
         this.authService = authService;
     }
 
-    // Rejestracja email + hasło. Zapisuje klienta (i opcjonalnie pojazd główny) do bazy.
     @PostMapping("/register")
     public ResponseEntity<CustomerDTO> register(@RequestBody RegisterRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
-    // Logowanie email + hasło. Zwraca CustomerDTO (frontend trzyma w localStorage)
-    // albo 401 jeśli email/hasło są nieprawidłowe.
     @PostMapping("/login")
     public CustomerDTO login(@RequestBody LoginRequestDTO request) {
         return authService.login(request);
     }
 
-    // Reset hasła — mock: loguje request do konsoli, nie wysyła emaila.
-    // Zawsze zwraca 200 żeby nie ujawniać czy email istnieje w systemie.
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@RequestParam String email) {
         System.out.println("[AUTH] Password reset requested for: " + email);

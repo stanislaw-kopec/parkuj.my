@@ -8,9 +8,10 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
   // Wcześniej widział wszystko + dashboard, co było mylące.
   const tabs = role === "owner"
     ? [
-        { id: "dashboard", label: "Panel zarządzania", icon: <I.Dash /> },
-        { id: "join",      label: "Dodaj parking",      icon: <I.Plus /> },
-        { id: "contact",   label: "Kontakt",            icon: <I.Mail /> },
+        { id: "dashboard",  label: "Panel zarządzania",    icon: <I.Dash /> },
+        { id: "ownerAdmin", label: "Panel administracyjny", icon: <I.List /> },
+        { id: "join",       label: "Dodaj parking",         icon: <I.Plus /> },
+        { id: "contact",    label: "Kontakt",               icon: <I.Mail /> },
       ]
     : [
         { id: "home",         label: "Strona główna",   icon: <I.Home /> },
@@ -97,7 +98,7 @@ export default function Nav({ page, setPage, pagePaths, user, setUser, setRole, 
                         <button className="umi" onClick={() => { setShowMenu(false); setPage("addCar"); }}>
                           <I.Car /> Dodaj pojazd
                         </button>
-                        <button className="umi" onClick={() => { setShowMenu(false); setPage("join"); }}>
+                        <button className="umi" onClick={() => { setShowMenu(false); setPage("auth", { ownerRegister: true }); }}>
                           <I.Dash /> Dołącz z parkingiem
                         </button>
                       </>

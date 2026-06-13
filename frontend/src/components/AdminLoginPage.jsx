@@ -24,6 +24,10 @@ export default function AdminLoginPage({ setAdmin, setPage, setToast }) {
     setError("");
     try {
       const admin = await adminLogin(form);
+      if (admin.role !== "SUPERADMIN") {
+        setError("Ten panel jest dostępny tylko dla SuperAdmina. Właściciele parkingów logują się przez stronę główną aplikacji.");
+        return;
+      }
       const adminData = {
         adminUserId: admin.adminUserId,
         email: admin.email,
@@ -32,7 +36,7 @@ export default function AdminLoginPage({ setAdmin, setPage, setToast }) {
       localStorage.setItem("admin", JSON.stringify(adminData));
       setAdmin(adminData);
       setPage("adminDashboard");
-      setToast(`Zalogowano jako ${admin.role}.`);
+      setToast("Zalogowano jako SuperAdmin.");
     } catch (err) {
       setError(err.message || "Logowanie nie powiodło się.");
     } finally {
@@ -43,11 +47,11 @@ export default function AdminLoginPage({ setAdmin, setPage, setToast }) {
   return (
     <div className="auth-page fin">
       <div className="auth-copy">
-        <div className="land-badge">Panel administratora</div>
+        <div className="land-badge">Panel SuperAdmina</div>
         <h1>Zaloguj się do panelu</h1>
         <p>
-          Dostęp tylko dla pracowników parkuj.my. Konta klientów logują się
-          przez{" "}
+          Dostęp wyłącznie dla SuperAdmina parkuj.my.{" "}
+          Właściciele parkingów i klienci logują się przez{" "}
           <button
             type="button"
             onClick={() => setPage("auth")}
@@ -62,7 +66,7 @@ export default function AdminLoginPage({ setAdmin, setPage, setToast }) {
               font: "inherit",
             }}
           >
-            stronę logowania użytkownika
+            stronę logowania aplikacji
           </button>.
         </p>
       </div>

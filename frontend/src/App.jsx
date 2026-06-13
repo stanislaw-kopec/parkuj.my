@@ -7,6 +7,7 @@ import ReservePage from "./components/ReservePage";
 import Reservations from "./components/Reservations";
 import JoinPage from "./components/JoinPage";
 import Dashboard from "./components/Dashboard";
+import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import ContactPage from "./components/ContactPage";
 import SettingsPage from "./components/SettingsPage";
 import UserPage from "./components/UserPage";
@@ -25,6 +26,7 @@ const PAGE_PATHS = {
   reservations: "/reservations",
   join: "/join",
   dashboard: "/dashboard",
+  ownerAdmin: "/owner-admin",
   contact: "/contact",
   settings: "/settings",
   user: "/user",
@@ -64,6 +66,7 @@ export default function App() {
   };
   const [showMenu, setShowMenu]   = useState(false);
   const [toast, setToast]         = useState(null);
+  const [pageOptions, setPageOptions] = useState({});
   const [vehicles, setVehicles]   = useState([]);
   const [vehiclesOwnerId, setVehiclesOwnerId] = useState(null);
 
@@ -102,6 +105,7 @@ export default function App() {
 
     setPageState(nextPage);
     setParkingId(options.parkingId || (nextPage === "parkingDetails" ? parkingId : null));
+    setPageOptions(options);
 
     if (path !== currentPath) {
       const method = options.replace ? "replaceState" : "pushState";
@@ -151,7 +155,7 @@ export default function App() {
       return;
     }
     // Właściciel parkingu nie powinien widzieć stron klienta — wymusza dashboard.
-    // Wyjątek: /join (dodaje kolejny parking), /contact, /settings, /parking/:id.
+    // Wyjątek: /join (dodaje kolejny parking), /owner-admin, /contact, /settings, /parking/:id.
     if (
       role === "owner" &&
       (page === "home" || page === "reserve" || page === "reservations" ||
@@ -164,11 +168,12 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case "landing":      return <Landing setPage={setPage} />;
-      case "auth":         return <AuthPage setUser={setUser} setRole={setRole} setPage={setPage} setToast={setToast} />;
+      case "auth":         return <AuthPage setUser={setUser} setRole={setRole} setPage={setPage} setToast={setToast} pageOptions={pageOptions} />;
       case "home":         return <HomePage setPage={setPage} />;
       case "reserve":      return <ReservePage user={user} vehicles={vehicles} vehiclesOwnerId={vehiclesOwnerId} setPage={setPage} setToast={setToast} />;
       case "reservations": return <Reservations user={user} setPage={setPage} setToast={setToast} />;
       case "join":         return <JoinPage user={user} setUser={setUser} setPage={setPage} setRole={setRole} />;
+      case "ownerAdmin":   return <OwnerAdminPanel user={user} setPage={setPage} setToast={setToast} />;
       case "dashboard":    return <Dashboard user={user} setPage={setPage} setToast={setToast} />;
       case "contact":      return <ContactPage user={user} setToast={setToast} />;
       case "settings":     return <SettingsPage user={user} setUser={setUser} setToast={setToast} />;

@@ -46,8 +46,6 @@ public class AuthService {
         customer.setStatus("ACTIVE");
         Customer saved = customerRepository.save(customer);
 
-        // Jeśli podano tablicę — utwórz pojazd główny.
-        // Zajęta tablica = rollback rejestracji z konkretnym komunikatem (zamiast cichego pominięcia).
         if (request.getPlate() != null && !request.getPlate().isBlank()) {
             String plate = request.getPlate().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
             String countryCode = normalizeCountryCode(request.getCountryCode());
@@ -66,7 +64,6 @@ public class AuthService {
         return CustomerDTO.fromEntity(saved);
     }
 
-    // Weryfikacja email + hasło. Nie ujawniamy czy email istnieje — w obu przypadkach 401.
     public CustomerDTO login(LoginRequestDTO request) {
         if (request == null || isBlank(request.getEmail()) || isBlank(request.getPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Podaj e-mail i hasło.");
@@ -76,7 +73,6 @@ public class AuthService {
         Customer customer = customerRepository.findByEmail(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło."));
 
-        // Klienci założeni przez Google OAuth nie mają hasła — nie pozwalamy się tak logować.
         if (customer.getPasswordHash() == null || customer.getPasswordHash().isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Nieprawidłowy e-mail lub hasło.");
         }
@@ -106,8 +102,6 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hasło musi mieć co najmniej 6 znaków.");
         }
         if (!isBlank(request.getPlate())) {
-            // Ta sama reguła co w VehicleService i ReservationService — wcześniej rejestracja
-            // wymagała 5–7 znaków, a reszta systemu 2–10, co dawało sprzeczne komunikaty.
             String plate = request.getPlate().trim().replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
             if (!plate.matches("[A-Z0-9]{2,10}")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

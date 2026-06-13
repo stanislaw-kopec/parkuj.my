@@ -243,3 +243,9 @@ export function fetchCustomerStats(customerId) {
 export function forgotPassword(email) {
   return apiCall(`/api/auth/forgot-password?email=${encodeURIComponent(email)}`, { method: "POST" });
 }
+
+// Rezerwacje dla konkretnego parkingu (panel właściciela).
+export async function fetchLotReservations(lotId, customerId) {
+  const data = await apiCall(`/api/parking-lots/${lotId}/reservations?customerId=${customerId}`);
+  return Array.isArray(data) ? data.map(mapReservation) : [];
+}

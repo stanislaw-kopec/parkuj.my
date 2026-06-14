@@ -78,7 +78,7 @@ Płatność. BLIK, karta, Google Pay, gotówka przy parkomacie. Gotówka nie jes
 
 `[Klik: Potwierdź rezerwację → ekran sukcesu z kodem]`
 
-I po sprawie. Klient dostaje na email **dwunastoznakowy kod rezerwacji** — to jest jego dowód i identyfikator. Generujemy go bezpiecznym losowaniem, z alfabetu pozbawionego mylących znaków, żeby nie było pomyłek przy odczytywaniu z ekranu czy z papieru.
+I po sprawie. Klient dostaje **dwunastoznakowy kod rezerwacji** — to jego dowód i identyfikator. Generujemy go bezpiecznym losowaniem, z alfabetu pozbawionego mylących znaków, żeby nie było pomyłek przy odczytywaniu z ekranu czy z papieru.
 
 ---
 
@@ -86,7 +86,7 @@ I po sprawie. Klient dostaje na email **dwunastoznakowy kod rezerwacji** — to 
 
 `[Klik: Moje rezerwacje]`
 
-Wszystkie rezerwacje w jednym miejscu — aktywne na górze, historia poniżej. Klient może anulować rezerwację jednym kliknięciem, system automatycznie inicjuje zwrot pieniędzy.
+Wszystkie rezerwacje w jednym miejscu — aktywne na górze, historia poniżej. Klient może anulować rezerwację jednym kliknięciem — status w bazie zmienia się natychmiast, a w docelowej integracji z bramką płatniczą będzie tu wpinany automatyczny zwrot.
 
 `[Klik: menu użytkownika → Moje konto]`
 

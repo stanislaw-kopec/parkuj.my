@@ -10,15 +10,11 @@
 
 `[Otwórz aplikację — strona główna /, niezalogowany]`
 
-Dzień dobry. To, co Państwo zaraz zobaczą, to **parkuj.my** — system, który zmienia sposób, w jaki parkujemy w miastach.
+Dzień dobry. To, co Państwo zaraz zobaczą, to **parkuj.my** — platforma rezerwacji miejsc parkingowych online.
 
-Punkt wyjścia jest prosty. Parkowanie w Warszawie, Krakowie czy Wrocławiu to dziś krążenie po blokach, kolejka do szlabanu z biletem w zębach, parkomat, który nie zawsze działa, i wieczna niepewność, czy w ogóle znajdę miejsce. My to zmieniamy.
+Punkt wyjścia jest prosty. Parkowanie w dużych miastach to dziś krążenie po blokach w poszukiwaniu wolnego miejsca, niepewność czy w ogóle je znajdę, i parkomat, który nie zawsze działa. Z drugiej strony właściciele parkingów nie mają realnego narzędzia do zarządzania obłożeniem ani prostego sposobu na dotarcie do klienta.
 
-Nasza propozycja w jednym zdaniu: **zarezerwuj miejsce online, zapłać z góry, wjedź bez zatrzymywania się — bo kamera odczyta Twoją tablicę i otworzy szlaban.**
-
-`[Najedź na nagłówek "Zarezerwuj miejsce parkingowe w 10 sekund"]`
-
-Dziesięć sekund. To nasza obietnica dla klienta. Pokażemy, że jest realna.
+My łączymy obie strony. **Kierowca rezerwuje miejsce z wyprzedzeniem i ma pewność, że je dostanie. Właściciel ma stałe, przewidywalne obłożenie i narzędzia, żeby zarządzać swoim parkingiem z poziomu przeglądarki.** To jest fundament, na którym budujemy.
 
 ---
 
@@ -38,7 +34,7 @@ Trzy zakładki — logowanie, klient, właściciel. Wybieramy klienta.
 
 `[Wypełnij formularz: imię, nazwisko, email, telefon, tablica, hasło]`
 
-Rejestracja jest świadomie krótka. Imię, nazwisko, email, telefon — i **tablica rejestracyjna**. Tablica jest tu nie po to, żeby ładnie wyglądała w formularzu. Tablica jest tu, bo to ona za chwilę otworzy klientowi szlaban. To jest jego klucz do parkingu.
+Rejestracja jest świadomie krótka. Imię, nazwisko, email, telefon — i **tablica rejestracyjna**. Tablica jest tu nieprzypadkowo: docelowo to ona, odczytana przez kamerę przy wjeździe, będzie kluczem klienta do parkingu. To architektura zbudowana pod ten kierunek już dziś.
 
 `[Klik: Utwórz konto → przekierowanie na /home]`
 
@@ -82,7 +78,7 @@ Płatność. BLIK, karta, Google Pay, gotówka przy parkomacie. Gotówka nie jes
 
 `[Klik: Potwierdź rezerwację → ekran sukcesu z kodem]`
 
-I po sprawie. Klient dostaje na email **dwunastoznakowy kod rezerwacji**. To jest fallback — gdyby kamera z jakiegokolwiek powodu nie odczytała tablicy przy wjeździe, klient otwiera szlaban kodem z aplikacji. **Nikt nie zostaje pod zamkniętym szlabanem.**
+I po sprawie. Klient dostaje na email **dwunastoznakowy kod rezerwacji** — to jest jego dowód i identyfikator. Generujemy go bezpiecznym losowaniem, z alfabetu pozbawionego mylących znaków, żeby nie było pomyłek przy odczytywaniu z ekranu czy z papieru.
 
 ---
 
@@ -210,13 +206,13 @@ Krótko o tym, czego nie widać. Backend: **Java 17 i Spring Boot 4**. Baza **Po
 
 ## 9:50 — Wizja (≈50 s)
 
-`[Wróć na landing, najedź na hasło "Wjazd bez zatrzymywania"]`
+`[Wróć na landing]`
 
-I tu jest najważniejsze. Wszystko, co Państwo dziś zobaczyli, **działa**. Ale kierunek jest większy.
+I to jest fundament. Wszystko, co Państwo dziś zobaczyli, **działa**. Ale kierunek jest większy.
 
-Następny krok to **ANPR — automatyczne rozpoznawanie tablic**. Kamera nad szlabanem, Python z modelem OCR, szlaban otwiera się sam — bez biletu, bez aplikacji w ręce, bez zatrzymywania. Klient po prostu wjeżdża. To jest moment, w którym parking przestaje być uciążliwością, a staje się **niezauważalny**.
+Kluczowym następnym krokiem jest **ANPR — automatyczne rozpoznawanie tablic rejestracyjnych**. Kamera nad szlabanem, serwis w Pythonie z modelem OCR, szlaban otwiera się sam — bez biletu, bez aplikacji w ręce, bez zatrzymywania. Klient po prostu wjeżdża. **To jest moment, w którym parking przestaje być uciążliwością, a staje się niezauważalny.** I cała dzisiejsza architektura — tablica jako identyfikator klienta, kod rezerwacji jako fallback — jest pod ten krok zaprojektowana.
 
-Drugi krok — integracja z Google OAuth, logowanie jednym kliknięciem. Trzeci — bramka płatnicza z fakturami automatycznie. I dalej: program lojalnościowy, partnerstwa z centrami handlowymi, lotniskami, deweloperami osiedli.
+Drugi krok — integracja z Google OAuth, logowanie jednym kliknięciem. Trzeci — bramka płatnicza z fakturami automatycznie i kasą fiskalną w parkomacie dla zgodności z prawem. I dalej: program lojalnościowy, partnerstwa z centrami handlowymi, lotniskami, deweloperami osiedli.
 
 ---
 
